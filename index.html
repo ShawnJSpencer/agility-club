@@ -88,6 +88,7 @@ input[type=text]{font:inherit;font-size:1rem;padding:9px 11px;border:2px solid v
 .confirm{background:#fff4f1;border:2px solid #f0c3b8;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .minis{display:flex;flex-wrap:wrap;gap:8px}
 .mini{display:flex;align-items:center;gap:8px;background:#f4f8fa;border:2px solid var(--line);border-radius:12px;padding:4px 10px 4px 4px;cursor:pointer;font:inherit;color:inherit;text-align:left;min-width:0}
+.mini:disabled{opacity:.5;cursor:default}
 .mini[aria-pressed="true"]{border-color:var(--ribbon);background:#e3ecfb}
 .mini span{display:flex;flex-direction:column;line-height:1.15;min-width:0}
 .mini small{color:var(--muted);font-size:.75rem}
@@ -645,23 +646,30 @@ function breedView(){
  if(litter){return `<div class="intro"><p class="eyebrow">Breeding</p><h1>${litter.length} new pupp${litter.length===1?"y":"ies"}!</h1><p class="lede">Name them, then start training. Each puppy needs ${GROW} tricks before it can run agility.</p></div>
   <div class="grid">${litter.map(id=>{const d=dogById(id);return dogCard(d,`<label class="sr" for="pn${id}">Name</label><input type="text" id="pn${id}" maxlength="16" value="${esc(d.name)}">`)}).join("")}</div>
   <div class="row"><button class="btn" id="litterDone">Welcome home</button></div>`;}
- const adults=S.dogs.filter(d=>d.age==="adult");
- const boys=adults.filter(d=>d.sex==="M"), boy=bBoy&&dogById(bBoy);
- const girls=adults.filter(d=>d.sex==="F"&&(!boy||d.breed===boy.breed)), girl=bGirl&&dogById(bGirl);
- const mini=(d,sel,attr)=>`<button class="mini" ${attr}="${d.id}" aria-pressed="${sel?"true":"false"}">${pcanvas(d,"stand","mpc")}<span><b>${esc(d.name)}</b><small>${byId(d.breed).short}</small></span></button>`;
+ if(bBoy&&!dogById(bBoy))bBoy=null;if(bGirl&&!dogById(bGirl))bGirl=null;
+ const ad=d=>d.age==="adult",allB=S.dogs.filter(d=>d.sex==="M"),allG=S.dogs.filter(d=>d.sex==="F");
+ const canPair=(d,others)=>ad(d)&&others.some(o=>ad(o)&&o.breed===d.breed);
+ // pick the obvious choice so the pair is ready to go
+ if(!bBoy){const ok=allB.filter(d=>canPair(d,allG)&&(!bGirl||d.breed===dogById(bGirl).breed));if(ok.length===1)bBoy=ok[0].id;}
+ if(!bGirl&&bBoy){const ok=allG.filter(d=>ad(d)&&d.breed===dogById(bBoy).breed);if(ok.length===1)bGirl=ok[0].id;}
+ const boy=bBoy&&dogById(bBoy),girl=bGirl&&dogById(bGirl);
+ const why=(d,mate)=>!ad(d)?`Puppy · ${learned(d)}/${GROW} tricks`:mate&&mate.breed!==d.breed?"Different breed":"";
+ const mini=(d,sel,attr,mate)=>{const w=why(d,mate);return `<button class="mini" ${attr}="${d.id}" aria-pressed="${sel?"true":"false"}" ${w?"disabled":""}>${pcanvas(d,"stand","mpc")}<span><b>${esc(d.name)}</b><small>${byId(d.breed).short}${w?` · ${w}`:""}</small></span></button>`;};
+ const boys=allB,girls=allG;
  let preview="";
  if(boy&&girl){preview=`<div class="panel"><h3>Puppy forecast</h3><p class="sub">Puppies land near the average of both parents, give or take 8 points.</p><div class="stats">${STATS.map(([k,n])=>{const m=(boy.stats[k]+girl.stats[k])/2,lo=clamp(Math.round(m-8),5,99),hi=clamp(Math.round(m+8),5,99);
    return `<span>${n}</span><span class="meter"><i class="range" style="margin-left:${lo}%;width:${hi-lo}%"></i></span><b>${lo}–${hi}</b>`}).join("")}</div>
    <div class="row"><button class="btn" id="breedGo" ${room()<3?"disabled":""}>Breed ${esc(boy.name)} and ${esc(girl.name)}</button>${room()<3?`<span class="sub warn">Litters are 1–3 puppies, so you need 3 open spots. You have ${room()}.</span>`:""}</div></div>`;}
  return `<div class="intro"><p class="eyebrow">Breeding</p><h1>Raise a litter</h1><p class="lede">Pick an adult boy and an adult girl of the same breed. Strong parents tend to have strong puppies. A litter has 1 to 3 puppies.</p></div>
- <div class="panel"><h3>Boy</h3>${boys.length?`<div class="minis">${boys.map(d=>mini(d,d.id===bBoy,"data-boy")).join("")}</div>`:`<p class="sub">No adult boys yet. Adopt one at the shelter or grow a puppy up.</p>`}</div>
- <div class="panel"><h3>Girl</h3>${!boy?`<p class="sub">Pick a boy first.</p>`:girls.length?`<div class="minis">${girls.map(d=>mini(d,d.id===bGirl,"data-girl")).join("")}</div>`:`<p class="sub">No adult ${byId(boy.breed).short} girls yet.</p>`}</div>
+ <div class="panel"><h3>Boy</h3>${boys.length?`<div class="minis">${boys.map(d=>mini(d,d.id===bBoy,"data-boy",girl)).join("")}</div>`:`<p class="sub">No boys yet. Adopt one at the shelter.</p>`}</div>
+ <div class="panel"><h3>Girl</h3>${girls.length?`<div class="minis">${girls.map(d=>mini(d,d.id===bGirl,"data-girl",boy)).join("")}</div>`:`<p class="sub">No girls yet. Adopt one at the shelter.</p>`}</div>
+ ${!(boy&&girl)?`<p class="sub">${!boy&&!girl?"Tap a boy and a girl to pair them.":!boy?"Now tap a boy.":"Now tap a girl."}</p>`:""}
  ${preview}`;
 }
 function bindBreed(){
  if(litter){$("litterDone").onclick=()=>{litter.forEach(id=>{const v=$("pn"+id).value.trim();if(v)dogById(id).name=v;});litter=null;save();go("kennel");};return;}
- document.querySelectorAll("[data-boy]").forEach(b=>b.onclick=()=>{bBoy=+b.dataset.boy;const g=bGirl&&dogById(bGirl);if(g&&g.breed!==dogById(bBoy).breed)bGirl=null;render();});
- document.querySelectorAll("[data-girl]").forEach(b=>b.onclick=()=>{bGirl=+b.dataset.girl;render();});
+ document.querySelectorAll("[data-boy]").forEach(b=>b.onclick=()=>{bBoy=bBoy===+b.dataset.boy?null:+b.dataset.boy;render();});
+ document.querySelectorAll("[data-girl]").forEach(b=>b.onclick=()=>{bGirl=bGirl===+b.dataset.girl?null:+b.dataset.girl;render();});
  if($("breedGo"))$("breedGo").onclick=()=>{
   const a=dogById(bBoy),m=dogById(bGirl);if(!a||!m||room()<3)return;
   const n=ri(1,3);litter=[];
