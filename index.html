@@ -707,7 +707,7 @@ function bindTrain(){
  $("treat").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();treat();}};
  let last=performance.now();
  const loop=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(!TR.busy){TR.m+=TR.dir*dt*.55;if(TR.m>1){TR.m=1;TR.dir=-1}if(TR.m<0){TR.m=0;TR.dir=1}}
+  if(!TR.busy){TR.m+=TR.dir*dt*.25;if(TR.m>1){TR.m=1;TR.dir=-1}if(TR.m<0){TR.m=0;TR.dir=1}}
   $("marker").style.left=(TR.m*100)+"%";drawTrain(now/1000);trRaf=requestAnimationFrame(loop);};
  trRaf=requestAnimationFrame(loop);
 }
