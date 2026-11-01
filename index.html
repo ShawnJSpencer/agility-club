@@ -267,7 +267,7 @@ function drawDog(c,L,x,gy,H,P,dir){
  let F=[],Rr=[];
  const nm=P.name;
  if(nm==="run"){const f=P.phase!=null?P.phase:0;
-  const fl=g=>{const u=-.15+.8*Math.sin(g),fold=Math.max(0,Math.cos(g));return fk(Sj,[up,fa,pa],[u,u-1.5*fold,u-1.5*fold+.6+.8*fold]);};
+  const fl=g=>{const u=-.15+.8*Math.sin(g),fold=Math.max(0,Math.cos(g));return fk(Sj,[up,fa,pa],[u,u-1.5*fold,u-1.5*fold+.35+.25*fold]);};
   const rl=g=>{const a=.35+.62*Math.sin(g),fold=Math.max(0,Math.cos(g));return fk(Hj,[th,ga,mt],[a,a-1.35-.35*fold,a-1.35+.15*fold-.1]);};
   F=[fl(f+.55),fl(f)];Rr=[rl(f+Math.PI+.5),rl(f+Math.PI)];}
  else if(nm==="air"){const k=P.tuck==null?1:P.tuck;
@@ -283,22 +283,44 @@ function drawDog(c,L,x,gy,H,P,dir){
   F=[fk(Sj,[up,fa,pa],[.3,-.1,.4]),fk(Sj,[up,fa,pa],[.1,-.3,.2])];Rr=[fk(Hj,[th,ga,mt],[.6,-.4,.1]),fk(Hj,[th,ga,mt],[.4,-.6,0])];}
  else {F=[standFront(Sj,.05),standFront(Sj,0)];Rr=[standRear(add(Hj,.04,0),.05),standRear(Hj,0)];}
 
+ // smooth leg: Catmull-Rom centerline through joints, one continuous outline so joints flow
+ function spline(pts,ws,per){const out=[],n=pts.length;
+  for(let i=0;i<n-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(n-1,i+2)];
+   for(let k=0;k<per;k++){const t=k/per,t2=t*t,t3=t2*t;
+    const f=(a,b,c2,d)=>.5*((2*b)+(-a+c2)*t+(2*a-5*b+4*c2-d)*t2+(-a+3*b-3*c2+d)*t3);
+    out.push({x:f(p0.x,p1.x,p2.x,p3.x),y:f(p0.y,p1.y,p2.y,p3.y),w:ws[i]+(ws[i+1]-ws[i])*t,seg:i});}}
+  const e=pts[n-1];out.push({x:e.x,y:e.y,w:ws[n-1],seg:n-1});return out;}
+ function sides(sp){const Lf=[],Rt=[];
+  sp.forEach((p,i)=>{const a=sp[Math.max(0,i-1)],q=sp[Math.min(sp.length-1,i+1)];let dx=q.x-a.x,dy=q.y-a.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
+   Lf.push({x:p.x-dy*p.w/2,y:p.y+dx*p.w/2,seg:p.seg});Rt.push({x:p.x+dy*p.w/2,y:p.y-dx*p.w/2,seg:p.seg});});return[Lf,Rt];}
+ function legPath(sp){const [Lf,Rt]=sides(sp);c.beginPath();c.moveTo(Lf[0].x,Lf[0].y);Lf.forEach(p=>c.lineTo(p.x,p.y));
+  const e=sp[sp.length-1],l=Lf[Lf.length-1],r=Rt[Rt.length-1];c.quadraticCurveTo(e.x+(e.x-sp[sp.length-2].x)*2.2,e.y+(e.y-sp[sp.length-2].y)*2.2,r.x,r.y);
+  for(let i=Rt.length-1;i>=0;i--)c.lineTo(Rt[i].x,Rt[i].y);c.closePath();return[Lf,Rt];}
  const sockCol=b.marks.socks?W:null;
- function drawLeg(pts,ws,col,far,rear){
+ function drawLeg(pts0,ws0,col,far,rear){
+  const top=rear?T({x:hip.x+.03,y:hip.y-.15}):T({x:.3*BL,y:y0-.43});
+  const pts=[top,...pts0],ws=[rear?.34:.24,...ws0];
+  const sp=spline(pts,ws,8);
+  let fill=col;
+  if(!far){const g2=c.createLinearGradient(0,y0-.62+drop,0,y0+.06+drop);g2.addColorStop(0,shade(base,.1));g2.addColorStop(.6,base);g2.addColorStop(1,shade(base,-.18));fill=g2;}
+  c.fillStyle=fill;const [Lf,Rt]=legPath(sp);c.fill();
   const sock=sockCol?(far?shade(sockCol,-.25):sockCol):null;
-  for(let i=0;i<pts.length-1;i++){
-   const cl=(sock&&i>=1)?sock:col;c.fillStyle=cl;
-   taper(c,[pts[i],pts[i+1]],ws[i],ws[i+1]);c.fill();
-   c.beginPath();c.arc(pts[i+1].x,pts[i+1].y,ws[i+1]/2,0,7);c.fill();
-  }
+  if(sock){c.save();legPath(sp);c.clip();const E=pts[2],Wr=pts[3];const st={x:E.x+(Wr.x-E.x)*.3,y:E.y+(Wr.y-E.y)*.3};
+   const sub=spline([st,...pts.slice(3)],[ws[2]*1.6,...ws.slice(3).map(w=>w*1.6)],8);c.fillStyle=sock;legPath(sub);c.fill();c.restore();}
+  // paw
   const p=pts[pts.length-1],q=pts[pts.length-2],a=Math.atan2(p.y-q.y,p.x-q.x)-Math.PI/2;
-  c.save();c.translate(p.x,p.y);c.rotate(a*.4);c.fillStyle=sock||col;c.beginPath();c.ellipse(.03,-.012,.052,.03,0,0,7);c.fill();
-  c.strokeStyle=outline;c.lineWidth=.008;c.stroke();c.restore();
+  c.save();c.translate(p.x,p.y);c.rotate(a*.4);c.fillStyle=sock||(far?col:base);c.beginPath();c.ellipse(.028,-.006,.055,.032,0,0,7);c.fill();
+  c.strokeStyle=outline;c.lineWidth=.008;c.beginPath();c.ellipse(.028,-.006,.055,.032,0,Math.PI*1.05,Math.PI*2.1);c.stroke();
+  c.strokeStyle="rgba(25,18,12,.35)";c.lineWidth=.005;c.beginPath();c.moveTo(.05,.0);c.lineTo(.055,.02);c.moveTo(.068,-.005);c.lineTo(.075,.016);c.stroke();c.restore();
+  // contour on the visible part only (from the attachment joint down)
+  c.strokeStyle=outline;c.lineWidth=.009;const k=rear?Lf.findIndex(v=>v.seg>=1)+5:Lf.findIndex(v=>v.seg>=2);
+  c.beginPath();c.moveTo(Lf[k].x,Lf[k].y);for(let i=k;i<Lf.length;i++)c.lineTo(Lf[i].x,Lf[i].y);c.stroke();
+  c.beginPath();c.moveTo(Rt[k].x,Rt[k].y);for(let i=k;i<Rt.length;i++)c.lineTo(Rt[i].x,Rt[i].y);c.stroke();
   // feathering on back of foreleg for coated breeds
   if(!rear&&b.coat!=="short"&&!pup){c.fillStyle=far?shade(b.coat==="long"?W:base,-.2):(b.marks.socks?W:base);
-   const e=pts[1],w=pts[2];c.beginPath();c.moveTo(e.x-.02,e.y);c.quadraticCurveTo(e.x-.09,(e.y+w.y)/2,w.x-.03,w.y-.02);c.lineTo(w.x,w.y-.05);c.lineTo(e.x+.01,e.y+.02);c.fill();}
+   const e=pts0[1],w=pts0[2];c.beginPath();c.moveTo(e.x-.03,e.y-.02);c.quadraticCurveTo(e.x-.1,(e.y+w.y)/2,w.x-.035,w.y-.03);c.lineTo(w.x-.01,w.y-.06);c.lineTo(e.x,e.y+.02);c.fill();}
  }
- const fw=[.15,.095,.07,.06],rw=[.2,.11,.075,.062];
+ const fw=[.17,.105,.075,.065],rw=[.27,.13,.085,.068];
  drawLeg(Rr[0],rw,dark,1,1);drawLeg(F[0],fw,dark,1,0);
 
  // ---- tail ----
@@ -430,9 +452,8 @@ function drawDog(c,L,x,gy,H,P,dir){
  // near legs
  drawLeg(Rr[1],rw,base,0,1);
  // rear thigh muscle over near leg
- {const K=Rr[1][1];c.fillStyle=base;c.beginPath();c.ellipse((Hj.x+K.x)/2,(Hj.y+K.y)/2,.15,.11,Math.atan2(K.y-Hj.y,K.x-Hj.x),0,7);c.fill();
-  if(b.marks.merle){c.fillStyle=shade(b.spots,tone*.5);c.beginPath();c.arc((Hj.x+K.x)/2-.03,(Hj.y+K.y)/2,.05,0,7);c.fill();}
-  if(b.marks.saddle){}
+ {const K=Rr[1][1];
+  if(b.marks.merle){c.fillStyle=shade(b.spots,tone*.5);c.beginPath();c.ellipse((Hj.x+K.x)/2-.02,(Hj.y+K.y)/2-.02,.06,.045,.4,0,7);c.fill();}
   if(b.coat==="long"&&!pup){fringe(c,[{x:Hj.x-.13,y:Hj.y},{x:Hj.x-.12,y:Hj.y+.1},{x:Hj.x-.06,y:Hj.y+.2}],.06,W,(L.seed||1)+11);}}
  drawLeg(F[1],fw,base,0,0);
  // speech
