@@ -329,7 +329,7 @@ function drawDog(c,L,x,gy,H,P,dir){
   const wag=P.tail==="wag"?.28*Math.sin(t*9):0;
   const ty=b.tail;
   if(ty==="up"){len=.3;th0=P.tail==="out"?-.5:-1.05;tipBend=-.2;}
-  else if(ty==="arch"){len=.55;th0=P.tail==="out"?-1.0:-1.45;tipBend=-1.3;}
+  else if(ty==="arch"){len=.5;th0=P.tail==="out"?-1.0:-1.35;tipBend=-.85;}
   else if(ty==="bob"){len=.09;th0=.3;tipBend=0;}
   else {len=ty==="lowfluff"?.5:.56;th0=P.tail==="out"?.25:1.15;tipBend=-.7;}
   th0+=wag*(ty==="low"||ty==="lowfluff"?.6:1);
@@ -337,16 +337,21 @@ function drawDog(c,L,x,gy,H,P,dir){
   const d=(a)=>({x:-Math.cos(a),y:Math.sin(a)});
   const m={x:Tb.x+d(th0).x*len*.55,y:Tb.y+d(th0).y*len*.55};
   const e={x:m.x+d(th0+tipBend).x*len*.5,y:m.y+d(th0+tipBend).y*len*.5};
-  return quad(Tb,m,e,8);}
- const tp=tailPts();
- {const ty=b.tail;let w0=.1,w1=.035,col=base;
-  if(ty==="lowfluff"){w0=.17;w1=.08;}else if(ty==="arch"){w0=.12;w1=.2;}else if(ty==="bob"){w0=.11;w1=.08;}
+  return{m,e};}
+ const tc=tailPts();
+ {const ty=b.tail;let w0=.1,w1=.035;
+  if(ty==="lowfluff"){w0=.17;w1=.08;}else if(ty==="arch"){w0=.13;w1=.09;}else if(ty==="bob"){w0=.11;w1=.08;}
   if(b.coat==="medium"&&ty==="low"){w0=.13;w1=.06;}
   if(pup){w0*=.85;w1*=.85;}
-  if(ty==="arch"){c.fillStyle=W;taper(c,tp,w0*1.4,w1*1.6);c.fill();}
-  c.fillStyle=b.marks.tailpatch?shade(b.head2,tone):(b.saddle&&ty!=="low"?shade(b.saddle,tone):base);
-  taper(c,tp,w0,w1);c.fill();
-  if(b.marks.tailtip){c.fillStyle=W;taper(c,tp.slice(-4),w0*.55,w1*1.05);c.fill();}
+  // root sits inside the croup so the tail grows out of the body; spline makes the bend smooth
+  const root=T({x:-.38*BL,y:y0-.38});
+  const cp=[root,Tb,tc.m,tc.e],cw=[Math.max(w0,.1)*2.2,w0*1.15,(w0+w1)/2,w1];
+  const tcol=b.marks.tailpatch?shade(b.head2,tone):(b.saddle&&ty!=="low"?shade(b.saddle,tone):base);
+  if(ty==="arch"){c.fillStyle=W;legPath(spline(cp,cw.map((w,i)=>i?w*(1+.4*i):w),8));c.fill();}
+  const sp=spline(cp,cw,8);c.fillStyle=tcol;const [Lf,Rt]=legPath(sp);c.fill();
+  if(b.marks.tailtip){const mid={x:tc.m.x+(tc.e.x-tc.m.x)*.45,y:tc.m.y+(tc.e.y-tc.m.y)*.45};c.fillStyle=W;legPath(spline([mid,tc.e],[(w0+w1)/2*.95,w1*1.05],6));c.fill();}
+  if(ty!=="bob"){c.strokeStyle=outline;c.lineWidth=.008;const k=9;
+   [Lf,Rt].forEach(side=>{c.beginPath();c.moveTo(side[k].x,side[k].y);for(let i=k;i<side.length;i++)c.lineTo(side[i].x,side[i].y);c.stroke();});}
  }
 
  // ---- body ----
