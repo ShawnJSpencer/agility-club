@@ -107,6 +107,15 @@ input[type=text]{font:inherit;font-size:1rem;padding:9px 11px;border:2px solid v
 .course .sub{font-variant-numeric:tabular-nums}
 .course.lock{opacity:.6}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;font-weight:800;border-radius:12px;padding:10px 16px;z-index:20;max-width:calc(100% - 32px);text-align:center}
+.whobtn{all:unset;cursor:pointer;font-size:.78rem;font-weight:700;color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:3px 10px;white-space:nowrap}
+.whobtn:focus-visible{outline:3px solid var(--gold)}
+.who{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.whocard{font:inherit;color:inherit;cursor:pointer;background:var(--panel);border:3px solid var(--line);border-top:10px solid var(--pc);border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;min-width:0}
+.whocard:hover{border-color:var(--pc)}
+.whocard b{font-family:var(--display);font-weight:400;font-size:1.6rem;color:var(--pc)}
+.whocard small{color:var(--muted);font-size:.8rem;font-weight:700}
+.wpc,.wnew{width:100%;height:110px;border-radius:10px;background:linear-gradient(#e6f2f7 0 74%,#7fb874 74%)}
+.wnew{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;background:#eef3f6}
 /* run */
 #run{padding-top:14px}
 .hud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-variant-numeric:tabular-nums}
@@ -145,7 +154,7 @@ body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}
 <body>
 
 <div id="top" hidden>
-  <div class="bar"><span class="brand">Agility Club</span><span class="pill money" id="pMoney">$0</span><span class="pill" id="pLevel">Level 1</span><span class="pill" id="pHouse">House 1/10</span></div>
+  <div class="bar"><span class="brand">Agility Club</span><button class="whobtn" id="whoBtn" hidden></button><span class="pill money" id="pMoney">$0</span><span class="pill" id="pLevel">Level 1</span><span class="pill" id="pHouse">House 1/10</span></div>
   <nav class="tabs"><button data-t="kennel">Kennel</button><button data-t="train">Training</button><button data-t="breed">Breeding</button><button data-t="agility">Agility</button><button data-t="shelter">Shelter</button></nav>
 </div>
 <div class="wrap">
@@ -487,13 +496,25 @@ const COURSES=[
  {id:"excellent",name:"Excellent",lvl:6,rival:[55,95],seq:["jump","spread","jump","weave12","tunnel","tire","jump","aframe","spread","jump","tunnel","weave12","jump","jump"]}];
 
 /* ---------- state ---------- */
-const KEY="spencer-agility-v2";
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");return s&&s.v===2?s:null}catch(e){return null}}
+const KEY="spencer-agility-v3",OLDKEY="spencer-agility-v2";
+const PLAYERS=[{id:"dad",name:"Dad",col:"#2a5fc4"},{id:"mom",name:"Mom",col:"#c2417e"},{id:"emma",name:"Emma",col:"#3f8a3c"},{id:"nora",name:"Nora",col:"#e2552d"}];
+let ALL=null,who=null,S=null;
+function loadAll(){
+ try{const a=JSON.parse(localStorage.getItem(KEY)||"null");if(a&&a.v===3&&a.players)return a;}catch(e){}
+ const A={v:3,players:{}};
+ // progress from before players existed belongs to Emma
+ try{const old=JSON.parse(localStorage.getItem(OLDKEY)||"null");if(old&&old.v===2)A.players.emma=old;}catch(e){}
+ return A;
+}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(ALL))}catch(e){}}
 let syncHook=null;
-function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(syncHook)syncHook();}
-let S=load();
-function fresh(){S={v:2,money:0,level:1,nextId:1,dogs:[],shelter:[],starters:[],best:{},started:false};
- BREEDS.forEach(b=>["M","F"].forEach(sx=>S.starters.push(makeDog(b.id,sx))));}
+function save(){if(!S)return;S.u=Date.now();ALL.players[who]=S;saveLocal();if(syncHook)syncHook();}
+function freshState(){S={v:2,money:0,level:1,nextId:1,dogs:[],shelter:[],starters:[],best:{},started:false};
+ BREEDS.forEach(b=>["M","F"].forEach(sx=>S.starters.push(makeDog(b.id,sx))));return S;}
+function usePlayer(id){who=id;S=ALL.players[id]||null;if(!S){freshState();ALL.players[id]=S;saveLocal();}
+ tab="kennel";openDog=null;bBoy=bGirl=null;litter=null;trainDog=null;trainSkill=null;runDog=null;pickId=null;confirmRehome=false;
+ try{localStorage.setItem("agility.player",id)}catch(e){}}
+ALL=loadAll();
 function capacity(lv){return lv<20?10:15+5*Math.floor((lv-20)/10);}
 function room(){return capacity(S.level)-S.dogs.length;}
 function newName(){const used=new Set((S?S.dogs:[]).map(d=>d.name));const free=NAMES.filter(n=>!used.has(n));return pick(free.length?free:NAMES);}
@@ -529,7 +550,8 @@ function statBars(d,cmp){return `<div class="stats">${STATS.map(([k,n])=>`<span>
 /* ---------- shell ---------- */
 let tab="kennel";
 function header(){
- $("top").hidden=false;document.querySelector(".tabs").hidden=!S.started;["pMoney","pLevel","pHouse"].forEach(i=>$(i).hidden=!S.started);if(!S.started)return;
+ $("top").hidden=false;const on=!!(S&&S.started);document.querySelector(".tabs").hidden=!on;["pMoney","pLevel","pHouse"].forEach(i=>$(i).hidden=!on);
+ const wb=$("whoBtn");wb.hidden=!who;if(who)wb.innerHTML=`<b>${PLAYERS.find(p=>p.id===who).name}</b> · Switch`;if(!on)return;
  $("pMoney").textContent="$"+S.money;$("pLevel").textContent="Level "+S.level;$("pHouse").textContent=`House ${S.dogs.length}/${capacity(S.level)}`;
  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.t===tab?"page":"false"));
 }
@@ -539,7 +561,8 @@ function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTime
 function render(){
  LOOKS.clear();header();const v=$("view");
  $("run").hidden=true;v.hidden=false;
- if(!S.started){v.innerHTML=startView();bindStart();}
+ if(!who){v.innerHTML=whoView();bindWho();}
+ else if(!S.started){v.innerHTML=startView();bindStart();}
  else if(tab==="kennel"){v.innerHTML=kennelView();bindKennel();}
  else if(tab==="train"){v.innerHTML=trainView();bindTrain();}
  else if(tab==="breed"){v.innerHTML=breedView();bindBreed();}
@@ -548,13 +571,23 @@ function render(){
  paint(v);
 }
 
+/* ---------- who's playing ---------- */
+function whoView(){
+ return `<div class="intro"><p class="eyebrow">Spencer Agility Club</p><h1>Who's playing?</h1></div>
+ <div class="who">${PLAYERS.map(p=>{const st=ALL.players[p.id],lead=st&&st.started&&st.dogs[0];
+  return `<button class="whocard" data-who="${p.id}" style="--pc:${p.col}">${lead?pcanvas(lead,"stand","wpc"):`<span class="wnew">New kennel</span>`}
+  <b>${p.name}</b><small>${st&&st.started?`Level ${st.level} · $${st.money} · ${st.dogs.length} dog${st.dogs.length===1?"":"s"}`:"No dogs yet"}</small></button>`}).join("")}</div>`;
+}
+function bindWho(){document.querySelectorAll("[data-who]").forEach(b=>b.onclick=()=>{usePlayer(b.dataset.who);render();window.scrollTo(0,0);});}
+$("whoBtn").onclick=()=>{if(R)return;stopTrain();save();who=null;S=null;render();window.scrollTo(0,0);};
+
 /* ---------- start ---------- */
 let pickId=null;
 function dogCard(d,extra,attrs){const b=byId(d.breed);
  return `<div class="card" ${attrs||""}>${pcanvas(d)}<div class="top"><h3>${esc(d.name)}</h3>${sexLabel(d)}</div>
  <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${statBars(d)}${extra||""}</div>`;}
 function startView(){
- return `<div class="intro"><p class="eyebrow">Spencer Agility Club</p><h1>Choose your first dog</h1>
+ return `<div class="intro"><p class="eyebrow">Spencer Agility Club</p><h1>${who?PLAYERS.find(p=>p.id===who).name+", choose":"Choose"} your first dog</h1>
  <p class="lede">A boy and a girl of six agility breeds are waiting. Every dog is one of a kind, so check their ratings before you choose.</p></div>
  <div class="grid">${S.starters.map(d=>dogCard(d,`<button class="btn sel" data-pick="${d.id}">${pickId===d.id?"Chosen":"Choose"}</button>`,pickId===d.id?'aria-selected="true"':"")).join("")}</div>
  <div class="namebar"><label for="startName">Name</label><input type="text" id="startName" maxlength="16" placeholder="Choose a dog first" autocomplete="off"><button class="btn" id="startGo" ${pickId?"":"disabled"}>Bring home</button></div>`;
@@ -900,7 +933,6 @@ window.addEventListener("keydown",e=>{if($("run").hidden)return;
 window.addEventListener("resize",()=>{if(!$("view").hidden)paint($("view"));});
 
 /* ---------- boot ---------- */
-if(!S)fresh();
 render();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(!$("view").hidden)paint($("view"));});
 
@@ -925,20 +957,26 @@ const Sync=(()=>{
   return{data,sha:j.sha};
  }
  async function push(sha){
-  const body={message:"sync",content:b64e(JSON.stringify(S)),branch:GH.branch};if(sha)body.sha=sha;
+  const body={message:"sync",content:b64e(JSON.stringify(ALL)),branch:GH.branch};if(sha)body.sha=sha;
   const r=await fetch(API,{method:"PUT",headers:Object.assign(hdr(),{"Content-Type":"application/json"}),body:JSON.stringify(body)});
   if(r.status===409||r.status===422)return false;
   if(!r.ok)throw new Error(String(r.status));
   return true;
  }
- // Newest save wins. On a device's first sync, an existing family save always wins over this device.
- function decide(remote){
-  const valid=remote&&remote.v===2;
+ // Each player's kennel syncs separately: the newer save wins. On a device's first sync, saved kennels win over this device.
+ function merge(remote){
+  let rp={};
+  if(remote&&remote.v===3&&remote.players)rp=remote.players;
+  else if(remote&&remote.v===2)rp={emma:remote}; // save from before players existed
   const first=LSg("agility.firstsync")==="1";
-  if(valid&&first&&remote.started)return"take";
-  if(!valid)return S.started?"push":"none";
-  const ru=remote.u||0,lu=S.u||0;
-  if(ru>lu)return"take";if(lu>ru)return"push";return"none";
+  let changed=[],push=!(remote&&remote.v===3);
+  PLAYERS.forEach(({id})=>{
+   const r=rp[id],l=ALL.players[id];
+   const rOk=r&&r.v===2,lStarted=l&&l.started;
+   if(rOk&&(!l||(first&&r.started)||(r.u||0)>(l.u||0))){if(l!==r){ALL.players[id]=r;changed.push(id);}}
+   else if(lStarted&&(!rOk||(l.u||0)>(r.u||0)))push=true;
+  });
+  return{changed,push};
  }
  async function run(){
   if(!token)return;
@@ -949,12 +987,14 @@ const Sync=(()=>{
   try{
    let ok=false;
    for(let i=0;i<4&&!ok;i++){
-    const {data,sha}=await pull();const d=decide(data);
-    if(d==="take"){if(R){break;}S=data;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
-     openDog=null;bBoy=bGirl=null;litter=null;trainSkill=null;if(trainDog&&!dogById(trainDog))trainDog=null;if(runDog&&!dogById(runDog))runDog=null;
-     stopTrain();render();ok=true;}
-    else if(d==="push")ok=await push(sha);
-    else ok=true;
+    const {data,sha}=await pull();
+    if(R)break;
+    const m=merge(data);
+    if(m.changed.length){saveLocal();
+     if(!who)render();
+     else if(m.changed.includes(who)){S=ALL.players[who];const keep=tab;usePlayer(who);tab=keep;stopTrain();render();}
+     else header();}
+    ok=!m.push||await push(sha);
    }
    LSs("agility.firstsync","");
    if(borrowed){LSs("agility.ghtoken",token);borrowed=false;}
@@ -1009,7 +1049,7 @@ syncHook=()=>Sync.soon();
  <div class="row"><button class="btn" id="tokPaste">Paste key</button><button class="btn alt" id="tokSave">Save</button><button class="btn alt" id="tokOff" hidden>Turn off sync</button><button class="btn alt" id="tokClose">Close</button></div></div>`;
  document.body.appendChild(sh);
  const msgTok=(t,c)=>{$("tokMsg").textContent=t;$("tokMsg").className="tokmsg "+(c||"");};
- btn.onclick=()=>{$("tok").value="";msgTok("");$("tokOff").hidden=!Sync.on;$("sheetState").textContent=Sync.on?"Sync is on for this device.":"Sync is off for this device. When you turn it on, this device loads your family's saved kennel.";sh.hidden=false;};
+ btn.onclick=()=>{$("tok").value="";msgTok("");$("tokOff").hidden=!Sync.on;$("sheetState").textContent=Sync.on?"Sync is on for this device.":"Sync is off for this device. When you turn it on, this device loads the family's saved kennels.";sh.hidden=false;};
  $("tokClose").onclick=()=>{sh.hidden=true};
  sh.addEventListener("click",e=>{if(e.target===sh)sh.hidden=true});
  $("tokPaste").onclick=async()=>{let t="";
