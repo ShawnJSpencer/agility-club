@@ -707,12 +707,12 @@ function bindTrain(){
  $("treat").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();treat();}};
  let last=performance.now();
  const loop=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(!TR.busy){TR.m+=TR.dir*dt*.85;if(TR.m>1){TR.m=1;TR.dir=-1}if(TR.m<0){TR.m=0;TR.dir=1}}
+  if(!TR.busy){TR.m+=TR.dir*dt*.55;if(TR.m>1){TR.m=1;TR.dir=-1}if(TR.m<0){TR.m=0;TR.dir=1}}
   $("marker").style.left=(TR.m*100)+"%";drawTrain(now/1000);trRaf=requestAnimationFrame(loop);};
  trRaf=requestAnimationFrame(loop);
 }
 function stopTrain(){cancelAnimationFrame(trRaf);TR=null;}
-function newZone(){const w=clamp((.08+TR.d.stats.focus*.0022)*TR.sk.diff*(TR.d.age==="puppy"?.9:1),.08,.45);const s=rand(.05,.95-w);TR.zone=[s,s+w];
+function newZone(){const w=clamp((.08+TR.d.stats.focus*.0022)*1.25,.08,.45);const s=rand(.05,.95-w);TR.zone=[s,s+w];
  const z=$("zone");z.style.left=(s*100)+"%";z.style.width=(w*100)+"%";}
 function treat(){
  if(!TR||TR.busy)return;const {d,sk}=TR;
