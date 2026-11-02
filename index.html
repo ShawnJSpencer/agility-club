@@ -63,6 +63,8 @@ p{margin:0}
 .meter{height:8px;border-radius:4px;background:#e6edf1;overflow:hidden;display:block}
 .meter i{display:block;height:100%;background:var(--turf)}
 .meter i.range{background:var(--ribbon)}
+.stats .avg{font-weight:800;color:var(--ink);border-top:1px solid var(--line);padding-top:4px;margin-top:2px}
+.stats .meter.avg{padding-top:0;margin-top:6px;border:0}.meter.avg i{background:var(--gold)}
 .btn{font-family:var(--display);font-size:1.05rem;border:0;border-radius:12px;padding:10px 16px;background:var(--ribbon);color:#fff;cursor:pointer;touch-action:manipulation}
 .btn.alt{background:#fff;color:var(--ink);border:2px solid var(--line)}
 .btn.sm{padding:7px 12px;font-size:.95rem}
@@ -592,7 +594,8 @@ function paint(root){requestAnimationFrame(()=>{(root||document).querySelectorAl
  const b=it.look.b,sz=.62+.38*b.hc/24;let H=Math.min(h*.5,w*.38)*sz*(it.look.puppy?.72:1);
  drawDog(c,it.look,w*.5-H*.1,h*.92,H,poseFor(it.pose,.4,{}),1);});});}
 
-function statBars(d,cmp){return `<div class="stats">${STATS.map(([k,n])=>`<span>${n}</span><span class="meter"><i style="width:${d.stats[k]}%"></i></span><b>${d.stats[k]}</b>`).join("")}</div>`;}
+const statAvg=d=>Number((STATS.reduce((a,[k])=>a+d.stats[k],0)/STATS.length).toFixed(1));
+function statBars(d,cmp){const av=statAvg(d);return `<div class="stats">${STATS.map(([k,n])=>`<span>${n}</span><span class="meter"><i style="width:${d.stats[k]}%"></i></span><b>${d.stats[k]}</b>`).join("")}<span class="avg">Average</span><span class="meter avg"><i style="width:${av}%"></i></span><b class="avg">${av}</b></div>`;}
 
 /* ---------- shell ---------- */
 let tab="kennel";
