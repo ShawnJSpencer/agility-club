@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1299,6 +1300,27 @@ syncHook=()=>Sync.soon();
  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")Sync.run()});
  addEventListener("online",()=>Sync.run());
  Sync.paint();Sync.run();
+})();
+
+const APP_VERSION='1793591184';
+/* ===== Auto-update: load the newest version even if the phone saved an old copy ===== */
+(function(){
+ const ME=APP_VERSION;
+ async function check(){
+  if(R&&!R.done)return; // never interrupt a run
+  try{
+   const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"});if(!r.ok)return;
+   const v=String((await r.json()).v||"");if(!v||v===ME)return;
+   let tried="";try{tried=sessionStorage.getItem("agility.tried")||""}catch(e){}
+   if(tried===v)return; // already tried this version; avoid a reload loop
+   try{sessionStorage.setItem("agility.tried",v)}catch(e){}
+   if(S)saveLocal();
+   location.replace(location.pathname+"?v="+encodeURIComponent(v));
+  }catch(e){}
+ }
+ check();
+ document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});
+ setInterval(()=>{if(document.visibilityState==="visible")check();},5*60*1000);
 })();
 
 })();
