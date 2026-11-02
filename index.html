@@ -117,6 +117,25 @@ input[type=text]{font:inherit;font-size:1rem;padding:9px 11px;border:2px solid v
 .whocard small{color:var(--muted);font-size:.8rem;font-weight:700}
 .wpc,.wnew{width:100%;height:110px;border-radius:10px;background:linear-gradient(#e6f2f7 0 74%,#7fb874 74%)}
 .wnew{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;background:#eef3f6}
+.pill.day{background:#f2e7b8;color:var(--ink)}
+.needs{display:flex;flex-wrap:wrap;gap:4px}
+.need{font-size:.72rem;font-weight:800;border-radius:999px;padding:1px 8px}
+.need.ok{background:#e3f1df;color:#2f6d27}.need.bad{background:#fde3dc;color:var(--fault)}
+.good{color:#2f6d27;font-weight:700}
+.btn.food{background:#b5651d}.btn.water{background:#1f8fbf}.btn.play{background:var(--turf)}
+.btn.play[aria-pressed="true"]{box-shadow:0 0 0 3px rgba(63,138,60,.35)}
+.supply{gap:10px}
+.carelist{gap:0;padding:4px 14px}
+.carerow{display:grid;grid-template-columns:64px 1fr;gap:6px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.carerow:last-child{border-bottom:0}
+.cmeta{display:flex;flex-direction:column;gap:3px;min-width:0}.cmeta small{color:var(--muted);font-size:.78rem}
+.cbtns{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+#fcv{width:100%;border-radius:12px;display:block;touch-action:manipulation}
+.night{position:fixed;inset:0;z-index:60;background:radial-gradient(ellipse at 50% 30%,#22325a,#0a1022 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;animation:dusk .8s ease-out}
+.night::before{content:"";position:absolute;inset:0;background-image:radial-gradient(2px 2px at 20% 30%,#fff,transparent),radial-gradient(1.5px 1.5px at 70% 20%,#fff,transparent),radial-gradient(2px 2px at 40% 70%,#fff,transparent),radial-gradient(1.5px 1.5px at 85% 60%,#fff,transparent),radial-gradient(1.5px 1.5px at 10% 80%,#fff,transparent),radial-gradient(2px 2px at 60% 45%,#fff,transparent);opacity:.8}
+.night h2{font-size:2rem;position:relative}.night p{position:relative;color:#cfd8e6}
+.moon{width:90px;height:90px;border-radius:50%;box-shadow:-22px 10px 0 0 #f6e7a8;transform:translateX(11px);position:relative}
+@keyframes dusk{from{opacity:0}to{opacity:1}}
 /* run */
 #run{padding-top:14px}
 .hud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;font-variant-numeric:tabular-nums}
@@ -146,7 +165,7 @@ input[type=text]{font:inherit;font-size:1rem;padding:9px 11px;border:2px solid v
 .lineup small{color:var(--muted);font-size:.72rem}
 .lpc{width:100%;height:70px;border-radius:8px;background:linear-gradient(#e6f2f7 0 74%,#7fb874 74%)}
 .help{font-size:.85rem;color:var(--muted)}
-@media (max-width:520px){.brand{font-size:.95rem}.pill{font-size:.75rem;padding:2px 8px}h1{font-size:1.7rem}.hud span{font-size:1.1rem}.dhead{grid-template-columns:1fr}.overlay{position:fixed;inset:0;border-radius:0;z-index:30}}
+@media (max-width:520px){.brand{display:none}.pill{font-size:.75rem;padding:2px 8px}h1{font-size:1.7rem}.hud span{font-size:1.1rem}.dhead{grid-template-columns:1fr}.overlay{position:fixed;inset:0;border-radius:0;z-index:30}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}
@@ -155,8 +174,8 @@ body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}
 <body>
 
 <div id="top" hidden>
-  <div class="bar"><span class="brand">Agility Club</span><button class="whobtn" id="whoBtn" hidden></button><span class="pill money" id="pMoney">$0</span><span class="pill" id="pLevel">Level 1</span><span class="pill" id="pHouse">House 1/10</span></div>
-  <nav class="tabs"><button data-t="kennel">Kennel</button><button data-t="train">Training</button><button data-t="breed">Breeding</button><button data-t="agility">Agility</button><button data-t="shelter">Shelter</button></nav>
+  <div class="bar"><span class="brand">Agility Club</span><button class="whobtn" id="whoBtn" hidden></button><span class="pill money" id="pMoney">$0</span><span class="pill" id="pLevel">Level 1</span><span class="pill" id="pHouse">House 1/10</span><span class="pill day" id="pDay">Day 1</span></div>
+  <nav class="tabs"><button data-t="kennel">Kennel</button><button data-t="care">Care</button><button data-t="train">Training</button><button data-t="breed">Breeding</button><button data-t="agility">Agility</button><button data-t="shelter">Shelter</button></nav>
 </div>
 <div class="wrap">
   <main id="view"></main>
@@ -179,6 +198,7 @@ body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}
   </section>
 </div>
 <div id="toast" hidden></div>
+<div id="night" class="night" hidden></div>
 <script>
 (function(){
 /* ===== Dog renderer: side view, units of wither height H, ground at y=0, nose toward +x ===== */
@@ -510,9 +530,9 @@ function loadAll(){
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(ALL))}catch(e){}}
 let syncHook=null;
 function save(){if(!S)return;S.u=Date.now();ALL.players[who]=S;saveLocal();if(syncHook)syncHook();}
-function freshState(){S={v:2,money:0,level:1,nextId:1,dogs:[],shelter:[],starters:[],best:{},started:false};
+function freshState(){S={v:2,money:0,level:1,nextId:1,dogs:[],shelter:[],starters:[],best:{},started:false,day:1,dayMs:0,food:20};
  BREEDS.forEach(b=>["M","F"].forEach(sx=>S.starters.push(makeDog(b.id,sx))));return S;}
-function usePlayer(id){who=id;S=ALL.players[id]||null;if(!S){freshState();ALL.players[id]=S;saveLocal();}
+function usePlayer(id){who=id;S=ALL.players[id]||null;if(!S){freshState();ALL.players[id]=S;saveLocal();}migrate(S);stopFetch();
  tab="kennel";openDog=null;bBoy=bGirl=null;litter=null;trainDog=null;trainSkill=null;runDog=null;pickId=null;confirmRehome=false;
  try{localStorage.setItem("agility.player",id)}catch(e){}}
 ALL=loadAll();
@@ -526,7 +546,7 @@ function makeDog(breed,sex,o){
  if(o.eye)eye=o.eye;
  return{id:S?S.nextId++:Math.floor(Math.random()*1e9),name:o.name||newName(),breed,sex,stats:st,age:o.age||"adult",
   skills:{},parents:o.parents||null,seed:ri(1,99999),tone:o.tone!=null?o.tone:rand(-.09,.09),eye,
-  rec:{runs:0,first:0,second:0,third:0,clean:0}};
+  rec:{runs:0,first:0,second:0,third:0,clean:0},fedDay:S?(S.day||1):1,waterDay:S?(S.day||1):1,playDay:0,fetch:0};
 }
 function fillShelter(){
  BREEDS.forEach(b=>["M","F"].forEach(sx=>{if(!S.shelter.find(d=>d.breed===b.id&&d.sex===sx))S.shelter.push(makeDog(b.id,sx));}));
@@ -551,12 +571,12 @@ function statBars(d,cmp){return `<div class="stats">${STATS.map(([k,n])=>`<span>
 /* ---------- shell ---------- */
 let tab="kennel";
 function header(){
- $("top").hidden=false;const on=!!(S&&S.started);document.querySelector(".tabs").hidden=!on;["pMoney","pLevel","pHouse"].forEach(i=>$(i).hidden=!on);
+ $("top").hidden=false;const on=!!(S&&S.started);document.querySelector(".tabs").hidden=!on;["pMoney","pLevel","pHouse","pDay"].forEach(i=>$(i).hidden=!on);
  const wb=$("whoBtn");wb.hidden=!who;if(who)wb.innerHTML=`<b>${PLAYERS.find(p=>p.id===who).name}</b> · Switch`;if(!on)return;
- $("pMoney").textContent="$"+S.money;$("pLevel").textContent="Level "+S.level;$("pHouse").textContent=`House ${S.dogs.length}/${capacity(S.level)}`;
+ $("pMoney").textContent="$"+S.money;$("pLevel").textContent="Level "+S.level;$("pHouse").textContent=`House ${S.dogs.length}/${capacity(S.level)}`;dayPill();
  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.t===tab?"page":"false"));
 }
-function go(t){tab=t;stopTrain();render();window.scrollTo(0,0);}
+function go(t){tab=t;stopTrain();stopFetch();render();window.scrollTo(0,0);}
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>go(b.dataset.t));
 function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>el.hidden=true,2600);}
 function render(){
@@ -569,6 +589,7 @@ function render(){
  else if(tab==="breed"){v.innerHTML=breedView();bindBreed();}
  else if(tab==="agility"){v.innerHTML=agilityView();bindAgility();}
  else if(tab==="shelter"){v.innerHTML=shelterView();bindShelter();}
+ else if(tab==="care"){v.innerHTML=careView();bindCare();}
  paint(v);
 }
 
@@ -580,13 +601,13 @@ function whoView(){
   <b>${p.name}</b><small>${st&&st.started?`Level ${st.level} · $${st.money} · ${st.dogs.length} dog${st.dogs.length===1?"":"s"}`:"No dogs yet"}</small></button>`}).join("")}</div>`;
 }
 function bindWho(){document.querySelectorAll("[data-who]").forEach(b=>b.onclick=()=>{usePlayer(b.dataset.who);render();window.scrollTo(0,0);});}
-$("whoBtn").onclick=()=>{if(R)return;stopTrain();save();who=null;S=null;render();window.scrollTo(0,0);};
+$("whoBtn").onclick=()=>{if(R)return;stopTrain();stopFetch();save();who=null;S=null;render();window.scrollTo(0,0);};
 
 /* ---------- start ---------- */
 let pickId=null;
 function dogCard(d,extra,attrs){const b=byId(d.breed);
  return `<div class="card" ${attrs||""}>${pcanvas(d)}<div class="top"><h3>${esc(d.name)}</h3>${sexLabel(d)}</div>
- <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${statBars(d)}${extra||""}</div>`;}
+ <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${S&&S.started&&S.dogs.includes(d)?needChips(d):""}${statBars(d)}${extra||""}</div>`;}
 function startView(){
  return `<div class="intro"><p class="eyebrow">Spencer Agility Club</p><h1>${who?PLAYERS.find(p=>p.id===who).name+", choose":"Choose"} your first dog</h1>
  <p class="lede">A boy and a girl of six agility breeds are waiting. Every dog is one of a kind, so check their ratings before you choose.</p></div>
@@ -712,7 +733,7 @@ function bindTrain(){
  trRaf=requestAnimationFrame(loop);
 }
 function stopTrain(){cancelAnimationFrame(trRaf);TR=null;}
-function newZone(){const w=clamp((.08+TR.d.stats.focus*.0022)*1.25,.08,.45);const s=rand(.05,.95-w);TR.zone=[s,s+w];
+function newZone(){const easy=SKILLS.indexOf(TR.sk)>SKILLS.findIndex(x=>x.id==="shake");const w=clamp((.08+TR.d.stats.focus*.0022)*(easy?2:1.25),.08,easy?.6:.45);const s=rand(.05,.95-w);TR.zone=[s,s+w];
  const z=$("zone");z.style.left=(s*100)+"%";z.style.width=(w*100)+"%";}
 function treat(){
  if(!TR||TR.busy)return;const {d,sk}=TR;
@@ -748,8 +769,8 @@ function drawTrain(now){
 let runDog=null;
 function agilityView(){
  const ads=S.dogs.filter(d=>d.age==="adult"),pups=S.dogs.filter(d=>d.age==="puppy");
- if(!runDog||!ads.find(d=>d.id===runDog))runDog=ads[0]?ads[0].id:null;
- const mini=x=>`<button class="mini" data-rdog="${x.id}" aria-pressed="${x.id===runDog?"true":"false"}">${pcanvas(x,"stand","mpc")}<span><b>${esc(x.name)}</b><small>${byId(x.breed).short} · ${x.sex==="M"?"♂":"♀"}</small></span></button>`;
+ if(!runDog||!ads.find(d=>d.id===runDog&&cared(d))){const r0=ads.find(cared);runDog=r0?r0.id:null;}
+ const mini=x=>`<button class="mini" data-rdog="${x.id}" aria-pressed="${x.id===runDog?"true":"false"}" ${cared(x)?"":"disabled"}>${pcanvas(x,"stand","mpc")}<span><b>${esc(x.name)}</b><small>${cared(x)?`${byId(x.breed).short} · ${x.sex==="M"?"♂":"♀"}`:"Needs "+needsText(x)}</small></span></button>`;
  const d=runDog&&dogById(runDog);
  return `<div class="intro"><p class="eyebrow">Agility trial</p><h1>Pick a dog and a course</h1><p class="lede">Two other dogs run each course. 1st place wins $10, 2nd wins $5. A clean run (no faults, under course time) always wins 1st and raises your level.</p></div>
  <div class="panel"><h3>Adults</h3>${ads.length?`<div class="minis">${ads.map(mini).join("")}</div>`:`<p class="sub">No adults yet.</p>`}
@@ -793,7 +814,7 @@ function size(){dpr=window.devicePixelRatio||1;const cw=cv.clientWidth;const ch=
  cv.style.height=ch+"px";cv.width=cw*dpr;cv.height=ch*dpr;K=ch/260;W=cw/K;H=260;}
 window.addEventListener("resize",()=>{if(!$("run").hidden){size();if(R&&!R.running)draw();}});
 function startRun(c){
- const d=dogById(runDog);if(!d||d.age!=="adult")return;
+ const d=dogById(runDog);if(!d||d.age!=="adult"||!cared(d))return;
  const b=byId(d.breed),cr=buildCourse(c),st=d.stats;
  const barH=b.hc*2.05,Tair=.40+st.jump*.003,h=barH*1.6;
  R={course:c,cr,b,dog:d,look:lookOf(d),x:120,y:0,vy:0,air:false,g:8*h/(Tair*Tair),jv:4*h/Tair,barH,dh:b.hc*2.4+4,
@@ -922,9 +943,19 @@ function tireDraw(c,x,gy,bh){const cy=gy-bh*1.15-bh*.55;
  c.lineWidth=9;c.strokeStyle="#f2bf2e";c.beginPath();c.ellipse(x+4,cy,bh*.32,bh*.62,0,-Math.PI/2,Math.PI/2);c.stroke();
  c.strokeStyle="#182433";c.lineWidth=2;c.beginPath();c.moveTo(x,gy);c.lineTo(x,cy+bh*.62);c.moveTo(x,cy-bh*.62);c.lineTo(x,gy-bh*2.7);c.stroke();
  c.fillStyle="#7d8a95";c.fillRect(x-8,gy-bh*2.7,4,bh*2.7+2);}
-function tunnelDraw(c,x,gy,len){const h=48;c.fillStyle="#2a5fc4";c.beginPath();c.moveTo(x,gy+4);c.lineTo(x,gy-h+16);c.quadraticCurveTo(x,gy-h,x+16,gy-h);c.lineTo(x+len-16,gy-h);c.quadraticCurveTo(x+len,gy-h,x+len,gy-h+16);c.lineTo(x+len,gy+4);c.closePath();c.fill();
- c.strokeStyle="rgba(255,255,255,.35)";c.lineWidth=2;for(let i=12;i<len;i+=14){c.beginPath();c.moveTo(x+i,gy-h+2);c.lineTo(x+i,gy+4);c.stroke();}
- c.fillStyle="#182433";c.beginPath();c.ellipse(x+3,gy-h/2+4,5,h/2-2,0,0,7);c.fill();}
+function tunnelDraw(c,x,gy,len){
+ // tube sized to the dog so it truly disappears inside
+ const h=Math.max(58,R.dh*1.75+8),r=h/2,cy=gy-r+4;
+ const g=c.createLinearGradient(0,gy-h,0,gy+4);g.addColorStop(0,"#4f86e6");g.addColorStop(.45,"#2a5fc4");g.addColorStop(1,"#173c86");
+ c.fillStyle=g;c.beginPath();c.moveTo(x,gy+4);c.lineTo(x,cy);c.ellipse(x,cy,r*.32,r,0,Math.PI,Math.PI*1.5);c.lineTo(x+len,gy-h+4);c.ellipse(x+len,cy,r*.32,r,0,-Math.PI/2,Math.PI/2);c.lineTo(x,gy+4);c.closePath();c.fill();
+ c.strokeStyle="rgba(255,255,255,.28)";c.lineWidth=2.5;for(let i=14;i<len;i+=15){c.beginPath();c.ellipse(x+i,cy,r*.3,r-2,0,-Math.PI/2,Math.PI/2);c.stroke();}
+ // dog-shaped bulge moving through the tube
+ const dx=W*.3;if(dx>x+4&&dx<x+len){c.fillStyle="rgba(255,255,255,.18)";c.beginPath();c.ellipse(dx,cy+r*.15,R.dh*.9,r*.7,0,0,7);c.fill();}
+ // open mouth at the entrance, exit ring at the far end
+ c.fillStyle="#0e1b33";c.beginPath();c.ellipse(x,cy,r*.32,r,0,0,7);c.fill();
+ c.strokeStyle="#f2bf2e";c.lineWidth=5;c.beginPath();c.ellipse(x,cy,r*.32,r,0,0,7);c.stroke();
+ c.strokeStyle="#1d4aa0";c.lineWidth=4;c.beginPath();c.ellipse(x+len,cy,r*.32,r,0,-Math.PI/2,Math.PI/2);c.stroke();
+ c.fillStyle="#7d8a95";c.fillRect(x+len*.25-3,gy-2,6,6);c.fillRect(x+len*.75-3,gy-2,6,6);}
 function aframeDraw(c,x,gy,len){const m=x+len/2,ah=92;
  c.fillStyle="#7d8a95";c.beginPath();c.moveTo(x+12,gy+2);c.lineTo(m,gy-ah+6);c.lineTo(x+len-12,gy+2);c.closePath();c.fill();
  c.lineWidth=8;c.lineCap="butt";c.strokeStyle="#2a5fc4";c.beginPath();c.moveTo(x,gy);c.lineTo(m,gy-ah);c.lineTo(x+len,gy);c.stroke();
@@ -940,9 +971,171 @@ window.addEventListener("keydown",e=>{if($("run").hidden)return;
  if(e.code==="Space"||e.code==="ArrowUp"){e.preventDefault();doJump();}else if(e.code==="KeyW"||e.code==="ArrowRight"){e.preventDefault();doWeave();}});
 window.addEventListener("resize",()=>{if(!$("view").hidden)paint($("view"));});
 
-/* ---------- boot ---------- */
-render();
+/* ---------- boot (continues in care.js) ---------- */
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(!$("view").hidden)paint($("view"));});
+
+/* ===== Care: days & nights, food, water, fetch ===== */
+const DAY_MS=10*60*1000, NIGHT_MS=5000, BAG_PRICE=10, BAG_SERVINGS=20;
+function migrate(st){if(!st)return;if(!st.day)st.day=1;if(st.dayMs==null)st.dayMs=0;if(st.food==null)st.food=20;
+ (st.dogs||[]).forEach(d=>{if(d.fedDay==null)d.fedDay=st.day;if(d.waterDay==null)d.waterDay=st.day;if(d.playDay==null)d.playDay=0;if(d.fetch==null)d.fetch=0;});}
+const fedToday=d=>d.fedDay===S.day, wateredToday=d=>d.waterDay===S.day;
+const cared=d=>fedToday(d)&&wateredToday(d);
+function needsText(d){const n=[];if(!fedToday(d))n.push("food");if(!wateredToday(d))n.push("water");return n.join(" & ");}
+function needChips(d){return `<div class="needs"><span class="need ${fedToday(d)?"ok":"bad"}">${fedToday(d)?"Fed":"Hungry"}</span><span class="need ${wateredToday(d)?"ok":"bad"}">${wateredToday(d)?"Watered":"Thirsty"}</span>${d.playDay===S.day?'<span class="need ok">Played</span>':""}</div>`;}
+
+/* ---------- clock ---------- */
+let clockLast=performance.now(),nightOn=false,lastLocalSave=0;
+function dayPill(){const el=$("pDay");if(!el||!S)return;const left=Math.max(0,Math.ceil((DAY_MS-S.dayMs)/60000));
+ el.textContent=nightOn?`☾ Night`:`☀ Day ${S.day} · ${left} min`;}
+function tick(){
+ const now=performance.now(),dt=Math.min(2000,now-clockLast);clockLast=now;
+ if(!S||!S.started||!who||document.visibilityState!=="visible"||nightOn)return;
+ S.dayMs+=dt;
+ if(S.dayMs>=DAY_MS&&!(R&&!R.done))startNight(); // a run in progress finishes first
+ if(now-lastLocalSave>15000){lastLocalSave=now;saveLocal();}
+ dayPill();
+}
+setInterval(tick,1000);
+document.addEventListener("visibilitychange",()=>{clockLast=performance.now();if(document.visibilityState==="hidden"&&S)saveLocal();});
+function startNight(){
+ nightOn=true;stopFetch();const ov=$("night");
+ ov.innerHTML=`<div class="moon"></div><h2>Good night!</h2><p>Day ${S.day} is over. Your dogs are asleep.</p>`;ov.hidden=false;dayPill();
+ setTimeout(()=>{S.day++;S.dayMs=0;nightOn=false;ov.hidden=true;save();
+  const hungry=S.dogs.length;toast(`Good morning! Day ${S.day}: feed and water your ${hungry===1?"dog":"dogs"}.`);
+  if($("run").hidden)render();else header();},NIGHT_MS);
+}
+
+/* ---------- care view ---------- */
+let fetchDog=null;
+function careView(){
+ const need=S.dogs.filter(d=>!cared(d)).length,unfed=S.dogs.filter(d=>!fedToday(d)).length;
+ const rows=S.dogs.map(d=>`<div class="carerow">${pcanvas(d,null,"mpc")}<div class="cmeta"><b>${esc(d.name)}</b><small>${byId(d.breed).short} · ${d.sex==="M"?"♂":"♀"}${d.age==="puppy"?" · puppy":""}</small>${needChips(d)}</div>
+  <div class="cbtns"><button class="btn sm food" data-feed="${d.id}" ${fedToday(d)||S.food<1?"disabled":""}>${fedToday(d)?"Fed":"Feed"}</button>
+  <button class="btn sm water" data-water="${d.id}" ${wateredToday(d)?"disabled":""}>${wateredToday(d)?"Watered":"Water"}</button>
+  <button class="btn sm play" data-play="${d.id}" aria-pressed="${fetchDog===d.id?"true":"false"}">Play fetch</button></div></div>`).join("");
+ return `<div class="intro"><p class="eyebrow">Care</p><h1>Feed, water and play</h1><p class="lede">Every dog needs food and water each day. A day lasts 10 minutes, then night comes for 5 seconds. Dogs that still need food or water can't run agility.</p></div>
+ <div class="panel supply"><div><h3>Food: ${S.food} serving${S.food===1?"":"s"}</h3><p class="sub">One bag costs $${BAG_PRICE} and feeds ${BAG_SERVINGS} dogs. Water is free.</p></div>
+  <div class="row"><button class="btn" id="buyFood" ${S.money<BAG_PRICE?"disabled":""}>Buy food $${BAG_PRICE}</button>
+  <button class="btn food" id="feedAll" ${unfed&&S.food>0?"":"disabled"}>Feed all</button><button class="btn water" id="waterAll" ${S.dogs.some(d=>!wateredToday(d))?"":"disabled"}>Water all</button></div>
+  ${unfed>S.food?`<p class="sub warn">You have ${S.food} serving${S.food===1?"":"s"} for ${unfed} hungry dog${unfed===1?"":"s"}. ${S.money<BAG_PRICE?`Win $${BAG_PRICE-S.money} more in agility to buy a bag.`:"Buy a bag of food."}</p>`:""}
+  ${!need?`<p class="sub good">Everyone is fed and watered for Day ${S.day}.</p>`:""}</div>
+ <div id="fetchBox"></div>
+ <div class="panel carelist">${rows}</div>`;
+}
+function bindCare(){
+ const feed=d=>{if(fedToday(d)||S.food<1)return false;S.food--;d.fedDay=S.day;return true;};
+ document.querySelectorAll("[data-feed]").forEach(b=>b.onclick=()=>{const d=dogById(+b.dataset.feed);if(feed(d)){save();render();toast(`${d.name} ate breakfast.`);}});
+ document.querySelectorAll("[data-water]").forEach(b=>b.onclick=()=>{const d=dogById(+b.dataset.water);d.waterDay=S.day;save();render();toast(`${d.name} had a drink.`);});
+ document.querySelectorAll("[data-play]").forEach(b=>b.onclick=()=>{fetchDog=+b.dataset.play;render();$("fetchBox").scrollIntoView({behavior:"smooth",block:"start"});});
+ $("buyFood").onclick=()=>{if(S.money<BAG_PRICE)return;S.money-=BAG_PRICE;S.food+=BAG_SERVINGS;save();render();toast(`Bought a bag of food: ${BAG_SERVINGS} servings.`);};
+ $("feedAll").onclick=()=>{let n=0;S.dogs.forEach(d=>{if(feed(d))n++;});save();render();toast(n?`Fed ${n} dog${n===1?"":"s"}.`:"No food left.");};
+ $("waterAll").onclick=()=>{S.dogs.forEach(d=>d.waterDay=S.day);save();render();toast("Everyone had a drink.");};
+ if(fetchDog&&dogById(fetchDog))startFetch(dogById(fetchDog));else stopFetch();
+}
+
+/* ---------- fetch ---------- */
+let F=null,fRaf=0;
+const catchChance=d=>clamp(.2+(d.fetch||0)*.025+(d.stats.focus-50)*.003,.1,.92);
+function startFetch(d){
+ stopFetch();
+ $("fetchBox").innerHTML=`<div class="panel"><div class="top"><h2>Fetch with ${esc(d.name)}</h2><button class="btn alt sm" id="fClose">Done</button></div>
+  <p class="sub">Tap the field to aim: far or near, high or low. Then throw. Catch chance <b id="fChance">${Math.round(catchChance(d)*100)}%</b> · ${d.fetch||0} throws practiced.</p>
+  <canvas id="fcv"></canvas><div class="row"><button class="btn big" id="fThrow">Throw the ball</button><span class="sub" id="fMsg"></span></div></div>`;
+ const cv=$("fcv");
+ F={d,look:lookOf(d),phase:"ready",t:0,aim:null,ball:null,dog:{x:0,y:0,dir:1,pose:"sit",ph:0,lift:0},w:0,h:0,msg:""};
+ const sz=()=>{const dpr=window.devicePixelRatio||1;F.w=cv.clientWidth;F.h=Math.round(Math.min(300,Math.max(220,F.w*.55)));cv.style.height=F.h+"px";cv.width=F.w*dpr;cv.height=F.h*dpr;F.dpr=dpr;
+  F.gy=F.h*.84;F.hx=34;F.home=78;if(!F.aim)F.aim={x:F.w*.68,ht:F.h*.42};if(F.phase==="ready"){F.dog.x=F.home;}};
+ sz();F.sz=sz;
+ cv.addEventListener("pointerdown",e=>{const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;
+  F.aim={x:clamp(x,F.home+70,F.w-24),ht:clamp(F.gy-y,30,F.h*.75)};});
+ $("fThrow").onclick=throwBall;$("fClose").onclick=()=>{fetchDog=null;stopFetch();render();};
+ let last=performance.now();
+ const loop=now=>{const dt=Math.min(.05,(now-last)/1000);last=now;if(!F)return;stepFetch(dt);drawFetch();fRaf=requestAnimationFrame(loop);};
+ fRaf=requestAnimationFrame(loop);
+}
+function stopFetch(){cancelAnimationFrame(fRaf);F=null;}
+function throwBall(){
+ if(!F||F.phase!=="ready")return;
+ const d=F.d,sx=F.hx+14,sy=F.gy-62,tx=F.aim.x,ht=Math.max(F.aim.ht,40);
+ const T=.55+(tx-sx)/F.w*.7+ht/F.h*.5;
+ const v=150+d.stats.speed*1.7;
+ const reach=.25+(tx-F.home)/v;
+ const success=Math.random()<catchChance(d)&&reach<T+.1;
+ F.ball={sx,sy,tx,ht,T,t:0,x:sx,y:sy,state:"air",held:false};
+ F.success=success;F.v=v;F.phase="out";F.t=0;F.dog.pose="run";F.dog.dir=1;$("fThrow").disabled=true;msgF("");
+ F.throwT=performance.now();
+}
+function msgF(t){const m=$("fMsg");if(m)m.textContent=t;}
+function ballPos(b,s){return{x:b.sx+(b.tx-b.sx)*s,y:F.gy-4-((b.sy<F.gy?F.gy-4-b.sy:0)*(1-s)+4*b.ht*s*(1-s))};}
+function stepFetch(dt){
+ const b=F.ball,dg=F.dog,H=dogH();
+ dg.ph+=dt*(dg.pose==="run"?F.v/(H*.55):0);
+ if(F.phase==="ready"){dg.x=F.home;dg.pose="sit";dg.dir=1;return;}
+ F.t+=dt;
+ // ball
+ if(b&&!b.held){
+  if(b.state==="air"){b.t+=dt;const s=Math.min(1,b.t/b.T);const p=ballPos(b,s);b.x=p.x;b.y=p.y;
+   if(s>=1){b.state="roll";b.vx=60+b.ht*.3;b.y=F.gy-5;}}
+  else if(b.state==="roll"){b.x+=b.vx*dt;b.vx*=Math.pow(.15,dt);if(b.x>F.w-12){b.x=F.w-12;b.vx=0;}}
+ }
+ if(F.phase==="out"){
+  if(F.t<.25)return;
+  // where to go: meet the ball near the end of its flight, or chase it on the ground
+  let target=b.state==="air"&&F.success?ballPos(b,.88).x-H*.55:b.x-H*.6;
+  const dx=target-dg.x;dg.dir=dx>=0?1:-1;
+  if(Math.abs(dx)>3){dg.x+=Math.sign(dx)*Math.min(Math.abs(dx),F.v*dt);dg.pose="run";}else dg.pose="stand";
+  if(F.success&&b.state==="air"){const s=b.t/b.T;
+   if(s>.72&&Math.abs(b.x-(dg.x+H*.6))<H*1.2){F.phase="jump";F.jt=0;}}
+  else if(b.state!=="air"&&Math.abs(b.x-(dg.x+H*.6*dg.dir))<H*.5&&Math.abs(b.vx)<40){F.phase="pickup";F.pt=0;dg.pose="down";}
+ }
+ else if(F.phase==="jump"){F.jt+=dt;const k=Math.min(1,F.jt/.5);dg.lift=Math.sin(k*Math.PI)*H*.9;dg.pose="air";
+  if(!b.held&&F.jt>.15){b.held=true;msgF("Caught it!");}
+  if(k>=1){dg.lift=0;F.phase="back";F.caught=true;}}
+ else if(F.phase==="pickup"){F.pt+=dt;if(F.pt>.35){b.held=true;F.phase="back";F.caught=false;msgF(`${F.d.name} got the ball.`);}}
+ else if(F.phase==="back"){dg.dir=-1;dg.pose="run";dg.x-=F.v*.8*dt;
+  if(dg.x<=F.home){dg.x=F.home;F.phase="ready";F.ball=null;dg.dir=1;dg.pose="sit";
+   const d=F.d;d.fetch=(d.fetch||0)+1;d.playDay=S.day;save();
+   $("fThrow").disabled=false;const ch=$("fChance");if(ch)ch.textContent=Math.round(catchChance(d)*100)+"%";
+   msgF(F.caught?`Caught it! ${d.name} is getting better.`:`Good try. Practice makes better catches.`);}}
+ if(b&&b.held){const m=mouth();b.x=m.x;b.y=m.y;}
+}
+function dogH(){const b=F.look.b;return F.h*.2*(.62+.38*b.hc/24)*(F.look.puppy?.75:1);}
+function mouth(){const H=dogH(),dg=F.dog;return{x:dg.x+dg.dir*H*.95,y:F.gy-dg.lift-H*(dg.pose==="air"?1.05:.95)};}
+function drawFetch(){
+ const cv=$("fcv");if(!cv||!F)return;const c=cv.getContext("2d"),w=F.w,h=F.h,gy=F.gy;c.setTransform(F.dpr,0,0,F.dpr,0,0);
+ const night=false;
+ let g=c.createLinearGradient(0,0,0,gy);g.addColorStop(0,"#a9d3ea");g.addColorStop(1,"#e8f4f8");c.fillStyle=g;c.fillRect(0,0,w,gy);
+ // trees + fence
+ for(let i=0;i<w;i+=70){c.fillStyle="#5d8f4e";c.beginPath();c.arc(i+30,gy-40,26,0,7);c.fill();c.fillStyle="#6b4a2b";c.fillRect(i+27,gy-18,6,18);}
+ c.fillStyle="#4a9846";c.fillRect(0,gy-8,w,h-gy+8);c.fillStyle="#3f8a3c";for(let i=0;i<w;i+=40)c.fillRect(i,gy-8,20,h);
+ // aim marker + dotted arc
+ if(F.phase==="ready"&&F.aim){const b={sx:F.hx+14,sy:gy-62,tx:F.aim.x,ht:Math.max(F.aim.ht,40)};
+  c.fillStyle="rgba(255,255,255,.9)";for(let i=1;i<=20;i++){const p=ballPos(b,i/20);c.beginPath();c.arc(p.x,p.y,2,0,7);c.fill();}
+  c.strokeStyle="#f2bf2e";c.lineWidth=3;c.beginPath();c.ellipse(F.aim.x,gy-3,16,5,0,0,7);c.stroke();}
+ // handler
+ const pc=(PLAYERS.find(p=>p.id===who)||{col:"#2a5fc4"}).col,hx=F.hx;
+ const throwing=F.throwT&&performance.now()-F.throwT<350;
+ c.fillStyle="#2b3440";c.fillRect(hx-7,gy-30,5,30);c.fillRect(hx+2,gy-30,5,30);
+ c.fillStyle=pc;c.beginPath();c.roundRect?c.roundRect(hx-10,gy-62,20,34,6):c.rect(hx-10,gy-62,20,34);c.fill();
+ c.fillStyle="#e7b996";c.beginPath();c.arc(hx,gy-72,10,0,7);c.fill();
+ c.strokeStyle=pc;c.lineWidth=6;c.lineCap="round";c.beginPath();c.moveTo(hx+6,gy-56);
+ if(throwing||F.phase==="ready")c.lineTo(hx+16,gy-68);else c.lineTo(hx+12,gy-38);c.stroke();
+ // dog
+ const H=dogH(),dg=F.dog;
+ c.fillStyle="rgba(0,0,0,.16)";c.beginPath();c.ellipse(dg.x,gy+1,H*.75,4,0,0,7);c.fill();
+ let P;if(dg.pose==="run")P=poseFor("run",0,{phase:dg.ph});else if(dg.pose==="air"){P=poseFor("air",0,{tilt:-.2});P.tuck=.6;}else P=poseFor(dg.pose,performance.now()/1000,{});
+ if(F.ball&&F.ball.held)P.mouth=.25;
+ drawDog(c,F.look,dg.x,gy-dg.lift,H,P,dg.dir);
+ // ball
+ if(F.ball){const b=F.ball;if(!b.held){c.fillStyle="rgba(0,0,0,.15)";c.beginPath();c.ellipse(b.x,gy-1,6,2,0,0,7);c.fill();}
+  c.fillStyle="#d7e84a";c.beginPath();c.arc(b.x,b.y,5.5,0,7);c.fill();c.strokeStyle="#fff";c.lineWidth=1.2;c.beginPath();c.arc(b.x-2,b.y,4,-.9,.9);c.stroke();}
+ else if(F.phase==="ready"){c.fillStyle="#d7e84a";c.beginPath();c.arc(hx+17,gy-70,5.5,0,7);c.fill();}
+}
+window.addEventListener("resize",()=>{if(F&&F.sz)F.sz();});
+
+/* ---------- boot ---------- */
+Object.values(ALL.players).forEach(migrate);
+render();
 
 /* ===== Sync (GitHub) — GitHub Pages build only ===== */
 const Sync=(()=>{
