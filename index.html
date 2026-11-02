@@ -76,6 +76,7 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:3px so
 input[type=text]{font:inherit;font-size:1rem;padding:9px 11px;border:2px solid var(--line);border-radius:10px;flex:1 1 160px;min-width:0;color:var(--ink);background:#fff}
 .namebar{background:var(--panel);border-radius:14px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:2px solid var(--line);position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));box-shadow:0 6px 20px rgba(24,36,51,.15)}
 .namebar label{font-weight:800}
+.card input[type=text]{flex:none}
 .panel,.detail{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .detail{border-color:var(--ribbon)}
 .dhead{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:12px;align-items:center}
@@ -502,7 +503,9 @@ const $=id=>document.getElementById(id);
 const rand=(a,b)=>a+Math.random()*(b-a), ri=(a,b)=>Math.floor(rand(a,b+1)), pick=a=>a[Math.floor(Math.random()*a.length)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
-const NAMES=["Ace","Bolt","Pepper","Scout","Juniper","Maple","Ranger","Willow","Dash","Clover","Finn","Hazel","Ziggy","Luna","Remy","Piper","Rocket","Sage","Tess","Moose","Kip","Nova","Bear","Poppy","Rusty","Indie","Banjo","Daisy","Jett","Wren","Comet","Birdie","Tucker","Olive","Rio","Skye","Gus","Ruby","Milo","Fern","Blaze","Penny","Otis","Lark","Zeke","Rosie","Cash","Ivy"];
+const BOY_NAMES=["Ace","Bolt","Scout","Ranger","Dash","Finn","Ziggy","Remy","Rocket","Moose","Kip","Bear","Rusty","Banjo","Jett","Comet","Tucker","Rio","Gus","Milo","Blaze","Otis","Zeke","Cash","Duke","Max","Copper","Hank","Buddy","Rex","Bandit","Chase"];
+const GIRL_NAMES=["Pepper","Juniper","Maple","Willow","Clover","Hazel","Luna","Piper","Sage","Tess","Nova","Poppy","Indie","Daisy","Wren","Birdie","Olive","Skye","Ruby","Fern","Penny","Lark","Rosie","Ivy","Bella","Lucy","Stella","Coco","Millie","Honey","Lily","Willa"];
+const NAMES=[...BOY_NAMES,...GIRL_NAMES];
 const STATS=[["speed","Speed"],["jump","Jumping"],["weave","Weaves"],["focus","Focus"]];
 const SKILLS=[
  {id:"sit",name:"Sit",pose:"sit",diff:1.25},{id:"down",name:"Lie Down",pose:"down",diff:1.15},
@@ -510,7 +513,7 @@ const SKILLS=[
  {id:"speak",name:"Speak",pose:"speak",diff:1},{id:"spin",name:"Spin",pose:"spin",diff:.9},
  {id:"roll",name:"Roll Over",pose:"roll",diff:.8},{id:"wave",name:"Wave",pose:"wave",diff:.85},
  {id:"sitpretty",name:"Sit Pretty",pose:"sitpretty",diff:.8},{id:"playdead",name:"Play Dead",pose:"playdead",diff:.75}];
-const REPS=3, GROW=5, PRICE=100, PRIZE=[10,5,0];
+const REPS=3, GROW=5, PRICE=100, PRIZE=[10,5,0], CLEAN_PRIZE=20;
 const COURSES=[
  {id:"novice",name:"Novice",lvl:1,rival:[35,80],seq:["jump","jump","tunnel","jump","weave6","tire","jump","aframe","jump","jump"]},
  {id:"open",name:"Open",lvl:3,rival:[45,88],seq:["jump","tire","weave6","jump","spread","tunnel","jump","aframe","jump","weave12","jump","jump"]},
@@ -538,13 +541,15 @@ function usePlayer(id){who=id;S=ALL.players[id]||null;if(!S){freshState();ALL.pl
 ALL=loadAll();
 function capacity(lv){return lv<20?10:15+5*Math.floor((lv-20)/10);}
 function room(){return capacity(S.level)-S.dogs.length;}
-function newName(){const used=new Set((S?S.dogs:[]).map(d=>d.name));const free=NAMES.filter(n=>!used.has(n));return pick(free.length?free:NAMES);}
+function newName(sex){const L=sex==="F"?GIRL_NAMES:BOY_NAMES;const used=new Set((S?[...S.dogs,...(S.shelter||[])]:[]).map(d=>d.name));const free=L.filter(n=>!used.has(n));return pick(free.length?free:L);}
+// default names that belong to the other sex get swapped for a matching one
+function fixName(d){const wrong=d.sex==="F"?BOY_NAMES:GIRL_NAMES;if(wrong.includes(d.name))d.name=newName(d.sex);}
 function makeDog(breed,sex,o){
  o=o||{};const b=byId(breed);const st={};
  STATS.forEach(([k])=>st[k]=o.stats?o.stats[k]:clamp(Math.round(b.st[k]+rand(-12,12)),5,99));
  let eye="#3a2412";if((breed==="aussie"&&Math.random()<.35)||(breed==="bc"&&Math.random()<.12))eye="#5f93c6";
  if(o.eye)eye=o.eye;
- return{id:S?S.nextId++:Math.floor(Math.random()*1e9),name:o.name||newName(),breed,sex,stats:st,age:o.age||"adult",
+ return{id:S?S.nextId++:Math.floor(Math.random()*1e9),name:o.name||newName(sex),breed,sex,stats:st,age:o.age||"adult",
   skills:{},parents:o.parents||null,seed:ri(1,99999),tone:o.tone!=null?o.tone:rand(-.09,.09),eye,
   rec:{runs:0,first:0,second:0,third:0,clean:0},fedDay:S?(S.day||1):1,waterDay:S?(S.day||1):1,playDay:0,fetch:0};
 }
@@ -554,7 +559,28 @@ function fillShelter(){
 }
 const learned=d=>SKILLS.filter(s=>(d.skills[s.id]||0)>=REPS).length;
 const sexLabel=d=>d.sex==="M"?'<span class="sex m">♂ Boy</span>':'<span class="sex f">♀ Girl</span>';
-const lookOf=d=>({b:byId(d.breed),puppy:d.age==="puppy",seed:d.seed,tone:d.tone,eye:d.eye});
+/* ---------- genes: mixed breeds look like both parents ---------- */
+const bOf=d=>d.genes||byId(d.breed);
+const rootsOf=d=>d.genes?d.genes.roots:[d.breed];
+function blendHex(a,b,t){const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const x=p(a),y=p(b);return"#"+x.map((v,i)=>Math.round(v+(y[i]-v)*t).toString(16).padStart(2,"0")).join("");}
+const MARK_COLOR={saddle:"saddle",merle:"spots",tan:"tan",headpatch:"head2",tailpatch:"head2",bodypatch:"head2",mask:"mask"};
+function mixGenes(ga,gb,roots){
+ const pk=()=>Math.random()<.5?ga:gb,avg=k=>(ga[k]+gb[k])/2+rand(-.03,.03);
+ const hcs=[8,12,16,20,24],h=(ga.hc+gb.hc)/2,hc=hcs.reduce((a,b)=>Math.abs(b-h)<Math.abs(a-h)?b:a);
+ const st={};STATS.forEach(([k])=>st[k]=Math.round((ga.st[k]+gb.st[k])/2));
+ const g={id:"mix",hc,st,len:avg("len"),leg:avg("leg"),head:avg("head"),muz:avg("muz"),coat:pk().coat,ears:pk().ears,tail:pk().tail,
+  base:blendHex(ga.base,gb.base,rand(.3,.7)),white:ga.white,marks:{},roots};
+ new Set([...Object.keys(ga.marks),...Object.keys(gb.marks)]).forEach(k=>{
+  const inA=!!ga.marks[k],inB=!!gb.marks[k];if(!inA&&!inB)return;
+  if(!(inA&&inB)&&Math.random()>.55)return;
+  g.marks[k]=1;const ck=MARK_COLOR[k];
+  if(ck){const ca=inA?ga[ck]:null,cb=inB?gb[ck]:null;g[ck]=ca&&cb?blendHex(ca,cb,rand(.3,.7)):(ca||cb);}});
+ const sh=r=>byId(r).short;
+ g.short=roots.length===1?sh(roots[0]):roots.length===2?`${sh(roots[0])} × ${sh(roots[1])}`:`${sh(roots[0])} mix`;
+ g.name=roots.length===1?byId(roots[0]).name:roots.length===2?`${g.short} mix`:`Mixed breed (${roots.map(sh).join(", ")})`;
+ return g;
+}
+const lookOf=d=>({b:bOf(d),puppy:d.age==="puppy",seed:d.seed,tone:d.tone,eye:d.eye});
 const dogById=id=>S.dogs.find(d=>d.id===id);
 
 /* ---------- portraits ---------- */
@@ -605,7 +631,7 @@ $("whoBtn").onclick=()=>{if(R)return;stopTrain();stopFetch();save();who=null;S=n
 
 /* ---------- start ---------- */
 let pickId=null;
-function dogCard(d,extra,attrs){const b=byId(d.breed);
+function dogCard(d,extra,attrs){const b=bOf(d);
  return `<div class="card" ${attrs||""}>${pcanvas(d)}<div class="top"><h3>${esc(d.name)}</h3>${sexLabel(d)}</div>
  <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${S&&S.started&&S.dogs.includes(d)?needChips(d):""}${statBars(d)}${extra||""}</div>`;}
 function startView(){
@@ -626,7 +652,7 @@ function kennelView(){
  const ds=[...S.dogs].sort((a,b)=>(a.age===b.age?0:a.age==="adult"?-1:1));
  let det="";
  const d=openDog&&dogById(openDog);
- if(d){const b=byId(d.breed),par=d.parents?d.parents.map(id=>{const p=dogById(id);return p?esc(p.name):"(rehomed)"}).join(" × "):"";
+ if(d){const b=bOf(d),par=d.parents?d.parents.map(id=>{const p=dogById(id);return p?esc(p.name):"(rehomed)"}).join(" × "):"";
   det=`<div class="detail" id="detail"><div class="dhead">${pcanvas(d,null,"bigpc")}<div class="dmeta">
    <div class="top"><h2>${esc(d.name)}</h2>${sexLabel(d)}</div><p class="sub">${b.name} · ${b.hc}" jump height · ${d.age==="puppy"?"Puppy":"Adult"}</p>
    ${par?`<p class="sub">Parents: ${par}</p>`:""}
@@ -669,19 +695,19 @@ function breedView(){
   <div class="row"><button class="btn" id="litterDone">Welcome home</button></div>`;}
  if(bBoy&&!dogById(bBoy))bBoy=null;if(bGirl&&!dogById(bGirl))bGirl=null;
  const ad=d=>d.age==="adult",allB=S.dogs.filter(d=>d.sex==="M"),allG=S.dogs.filter(d=>d.sex==="F");
- const canPair=(d,others)=>ad(d)&&others.some(o=>ad(o)&&o.breed===d.breed);
+ const canPair=(d,others)=>ad(d)&&others.some(ad);
  // pick the obvious choice so the pair is ready to go
- if(!bBoy){const ok=allB.filter(d=>canPair(d,allG)&&(!bGirl||d.breed===dogById(bGirl).breed));if(ok.length===1)bBoy=ok[0].id;}
- if(!bGirl&&bBoy){const ok=allG.filter(d=>ad(d)&&d.breed===dogById(bBoy).breed);if(ok.length===1)bGirl=ok[0].id;}
+ if(!bBoy){const ok=allB.filter(d=>canPair(d,allG));if(ok.length===1)bBoy=ok[0].id;}
+ if(!bGirl){const ok=allG.filter(d=>canPair(d,allB));if(ok.length===1)bGirl=ok[0].id;}
  const boy=bBoy&&dogById(bBoy),girl=bGirl&&dogById(bGirl);
- const why=(d,mate)=>!ad(d)?`Puppy · ${learned(d)}/${GROW} tricks`:mate&&mate.breed!==d.breed?"Different breed":"";
- const mini=(d,sel,attr,mate)=>{const w=why(d,mate);return `<button class="mini" ${attr}="${d.id}" aria-pressed="${sel?"true":"false"}" ${w?"disabled":""}>${pcanvas(d,"stand","mpc")}<span><b>${esc(d.name)}</b><small>${byId(d.breed).short}${w?` · ${w}`:""}</small></span></button>`;};
+ const why=(d,mate)=>!ad(d)?`Puppy · ${learned(d)}/${GROW} tricks`:"";
+ const mini=(d,sel,attr,mate)=>{const w=why(d,mate);return `<button class="mini" ${attr}="${d.id}" aria-pressed="${sel?"true":"false"}" ${w?"disabled":""}>${pcanvas(d,"stand","mpc")}<span><b>${esc(d.name)}</b><small>${bOf(d).short}${w?` · ${w}`:""}</small></span></button>`;};
  const boys=allB,girls=allG;
  let preview="";
  if(boy&&girl){preview=`<div class="panel"><h3>Puppy forecast</h3><p class="sub">Puppies land near the average of both parents, give or take 8 points.</p><div class="stats">${STATS.map(([k,n])=>{const m=(boy.stats[k]+girl.stats[k])/2,lo=clamp(Math.round(m-8),5,99),hi=clamp(Math.round(m+8),5,99);
    return `<span>${n}</span><span class="meter"><i class="range" style="margin-left:${lo}%;width:${hi-lo}%"></i></span><b>${lo}–${hi}</b>`}).join("")}</div>
    <div class="row"><button class="btn" id="breedGo" ${room()<3?"disabled":""}>Breed ${esc(boy.name)} and ${esc(girl.name)}</button>${room()<3?`<span class="sub warn">Litters are 1–3 puppies, so you need 3 open spots. You have ${room()}.</span>`:""}</div></div>`;}
- return `<div class="intro"><p class="eyebrow">Breeding</p><h1>Raise a litter</h1><p class="lede">Pick an adult boy and an adult girl of the same breed. Strong parents tend to have strong puppies. A litter has 1 to 3 puppies.</p></div>
+ return `<div class="intro"><p class="eyebrow">Breeding</p><h1>Raise a litter</h1><p class="lede">Pick an adult boy and an adult girl. They can be the same breed or different breeds: mixed puppies get colors and looks from both parents. Strong parents tend to have strong puppies. A litter has 1 to 3 puppies.</p></div>
  <div class="panel"><h3>Boy</h3>${boys.length?`<div class="minis">${boys.map(d=>mini(d,d.id===bBoy,"data-boy",girl)).join("")}</div>`:`<p class="sub">No boys yet. Adopt one at the shelter.</p>`}</div>
  <div class="panel"><h3>Girl</h3>${girls.length?`<div class="minis">${girls.map(d=>mini(d,d.id===bGirl,"data-girl",boy)).join("")}</div>`:`<p class="sub">No girls yet. Adopt one at the shelter.</p>`}</div>
  ${!(boy&&girl)?`<p class="sub">${!boy&&!girl?"Tap a boy and a girl to pair them.":!boy?"Now tap a boy.":"Now tap a girl."}</p>`:""}
@@ -696,6 +722,7 @@ function bindBreed(){
   const n=ri(1,3);litter=[];
   for(let i=0;i<n;i++){const st={};STATS.forEach(([k])=>st[k]=clamp(Math.round((a.stats[k]+m.stats[k])/2+rand(-8,8)),5,99));
    const p=makeDog(a.breed,Math.random()<.5?"M":"F",{stats:st,age:"puppy",parents:[a.id,m.id],tone:clamp((a.tone+m.tone)/2+rand(-.05,.05),-.12,.12),eye:Math.random()<.5?a.eye:m.eye});
+   if(a.genes||m.genes||a.breed!==m.breed){const roots=[...new Set([...rootsOf(a),...rootsOf(m)])];p.genes=mixGenes(bOf(a),bOf(m),roots);}
    S.dogs.push(p);litter.push(p.id);}
   bBoy=bGirl=null;save();render();};
 }
@@ -770,9 +797,9 @@ let runDog=null;
 function agilityView(){
  const ads=S.dogs.filter(d=>d.age==="adult"),pups=S.dogs.filter(d=>d.age==="puppy");
  if(!runDog||!ads.find(d=>d.id===runDog&&cared(d))){const r0=ads.find(cared);runDog=r0?r0.id:null;}
- const mini=x=>`<button class="mini" data-rdog="${x.id}" aria-pressed="${x.id===runDog?"true":"false"}" ${cared(x)?"":"disabled"}>${pcanvas(x,"stand","mpc")}<span><b>${esc(x.name)}</b><small>${cared(x)?`${byId(x.breed).short} · ${x.sex==="M"?"♂":"♀"}`:"Needs "+needsText(x)}</small></span></button>`;
+ const mini=x=>`<button class="mini" data-rdog="${x.id}" aria-pressed="${x.id===runDog?"true":"false"}" ${cared(x)?"":"disabled"}>${pcanvas(x,"stand","mpc")}<span><b>${esc(x.name)}</b><small>${cared(x)?`${bOf(x).short} · ${x.sex==="M"?"♂":"♀"}`:"Needs "+needsText(x)}</small></span></button>`;
  const d=runDog&&dogById(runDog);
- return `<div class="intro"><p class="eyebrow">Agility trial</p><h1>Pick a dog and a course</h1><p class="lede">Two other dogs run each course. 1st place wins $10, 2nd wins $5. A clean run (no faults, under course time) always wins 1st and raises your level.</p></div>
+ return `<div class="intro"><p class="eyebrow">Agility trial</p><h1>Pick a dog and a course</h1><p class="lede">Two other dogs run each course. A clean run (no faults, under course time) always wins 1st place, pays $20 and raises your level. Otherwise 1st place wins $10 and 2nd wins $5.</p></div>
  <div class="panel"><h3>Adults</h3>${ads.length?`<div class="minis">${ads.map(mini).join("")}</div>`:`<p class="sub">No adults yet.</p>`}
  ${pups.length?`<p class="sub">Puppies can't run yet: ${pups.map(p=>`${esc(p.name)} (${learned(p)}/${GROW} tricks)`).join(", ")}.</p>`:""}</div>
  ${d?`<div class="panel"><h3>${esc(d.name)}'s ratings</h3>${statBars(d)}</div>`:""}
@@ -805,7 +832,7 @@ function simRun(st,cr,sct){
   if(Math.random()<p)f+=5;});
  const tf=Math.max(0,Math.ceil(time-sct));return{time,faults:f,tf,total:f+tf};}
 function rivals(c){return[0,1].map(()=>{const b=pick(BREEDS),st={};STATS.forEach(([k])=>st[k]=clamp(Math.round(rand(c.rival[0],c.rival[1])*.6+b.st[k]*.4),5,99));
- const d={name:pick(NAMES),breed:b.id,sex:Math.random()<.5?"M":"F",stats:st,age:"adult",seed:ri(1,99999),tone:rand(-.09,.09),eye:"#3a2412"};return d;});}
+ const sx=Math.random()<.5?"M":"F";const d={name:pick(sx==="F"?GIRL_NAMES:BOY_NAMES),breed:b.id,sex:sx,stats:st,age:"adult",seed:ri(1,99999),tone:rand(-.09,.09),eye:"#3a2412"};return d;});}
 
 /* ---------- run ---------- */
 const cv=$("cv"),ctx=cv.getContext("2d");
@@ -815,7 +842,7 @@ function size(){dpr=window.devicePixelRatio||1;const cw=cv.clientWidth;const ch=
 window.addEventListener("resize",()=>{if(!$("run").hidden){size();if(R&&!R.running)draw();}});
 function startRun(c){
  const d=dogById(runDog);if(!d||d.age!=="adult"||!cared(d))return;
- const b=byId(d.breed),cr=buildCourse(c),st=d.stats;
+ const b=bOf(d),cr=buildCourse(c),st=d.stats;
  const barH=b.hc*2.05,Tair=.40+st.jump*.003,h=barH*1.6;
  R={course:c,cr,b,dog:d,look:lookOf(d),x:120,y:0,vy:0,air:false,g:8*h/(Tair*Tair),jv:4*h/Tair,barH,dh:b.hc*2.4+4,
   v:speedOf(st.speed),vw:weaveSpeedOf(st.weave),spd:0,t:0,faults:0,running:false,done:false,ph:0,taps:0,msgs:[],
@@ -826,7 +853,7 @@ function startRun(c){
  size();updHud();draw();
  LOOKS.clear();
  overlay(`<div class="result"><h2>${c.name} course</h2><p class="sub">${cr.obs.length} obstacles · Standard Course Time ${R.sct}s</p>
-  <div class="lineup">${[d,...R.rivals].map((x,i)=>`<div>${pcanvas(x,"stand","lpc")}<b>${esc(x.name)}</b><small>${byId(x.breed).short}${i===0?" · yours":""}</small></div>`).join("")}</div>
+  <div class="lineup">${[d,...R.rivals].map((x,i)=>`<div>${pcanvas(x,"stand","lpc")}<b>${esc(x.name)}</b><small>${bOf(x).short}${i===0?" · yours":""}</small></div>`).join("")}</div>
   <button class="btn" id="goBtn">Leave the start line</button></div>`);
  paint($("ov"));
  $("goBtn").onclick=()=>{overlay(null);R.running=true;R.go=1.2;last=performance.now();raf=requestAnimationFrame(loop);};
@@ -868,11 +895,11 @@ function updHud(){if(!R)return;$("hTime").textContent=R.t.toFixed(2);
 function finish(){
  R.done=true;R.running=false;
  const d=R.dog,c=R.course,tf=Math.max(0,Math.ceil(R.t-R.sct)),total=R.faults+tf,clean=total===0;
- const me={name:d.name,breed:d.breed,time:R.t,faults:R.faults,tf,total,me:true};
+ const me={name:d.name,breed:d.breed,genes:d.genes,time:R.t,faults:R.faults,tf,total,me:true};
  const others=R.rivals.map(x=>{const r=simRun(x.stats,R.cr,R.sct);return{name:x.name,breed:x.breed,...r};});
  const cmp=(a,b)=>a.total-b.total||a.time-b.time;
  let order=clean?[me,...others.sort(cmp)]:[me,...others].sort(cmp);
- const place=order.indexOf(me),prize=PRIZE[place];
+ const place=order.indexOf(me),prize=clean?CLEAN_PRIZE:PRIZE[place];
  S.money+=prize;d.rec.runs++;d.rec[["first","second","third"][place]]++;
  let lvlMsg="";
  if(clean){const oldCap=capacity(S.level);S.level++;d.rec.clean++;lvlMsg=`<p class="lvl">Level up! You're now level ${S.level}.${capacity(S.level)>oldCap?` Your house holds ${capacity(S.level)} dogs.`:""}</p>`;}
@@ -883,7 +910,7 @@ function finish(){
  overlay(`<div class="result"><div class="ribbonbig p${place}">${ord[place]} place</div>
   <p class="sub">${prize?`You won $${prize}.`:"No prize money for 3rd."} ${clean?"Clean run!":`${total} total faults (${R.faults} course, ${tf} time).`}</p>${lvlMsg}
   <table><thead><tr><th></th><th>Dog</th><th>Faults</th><th>Time</th></tr></thead><tbody>
-  ${order.map((r,i)=>`<tr class="${r.me?"me":""}"><td>${ord[i]}</td><td>${esc(r.name)}<small> ${byId(r.breed).short}</small></td><td>${r.total}</td><td>${r.time.toFixed(2)}</td></tr>`).join("")}</tbody></table>
+  ${order.map((r,i)=>`<tr class="${r.me?"me":""}"><td>${ord[i]}</td><td>${esc(r.name)}<small> ${bOf(r).short}</small></td><td>${r.total}</td><td>${r.time.toFixed(2)}</td></tr>`).join("")}</tbody></table>
   <div class="row center"><button class="btn" id="againBtn">Run again</button><button class="btn alt" id="homeBtn">Back</button></div></div>`);
  $("againBtn").onclick=()=>startRun(c);
  $("homeBtn").onclick=()=>{R=null;$("top").hidden=false;render();};
@@ -977,6 +1004,7 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(!$("vi
 /* ===== Care: days & nights, food, water, fetch ===== */
 const DAY_MS=10*60*1000, NIGHT_MS=5000, BAG_PRICE=10, BAG_SERVINGS=20;
 function migrate(st){if(!st)return;if(!st.day)st.day=1;if(st.dayMs==null)st.dayMs=0;if(st.food==null)st.food=20;
+ [...(st.shelter||[]),...(st.starters||[])].forEach(d=>{if(d.sex)fixName(d);});
  (st.dogs||[]).forEach(d=>{if(d.fedDay==null)d.fedDay=st.day;if(d.waterDay==null)d.waterDay=st.day;if(d.playDay==null)d.playDay=0;if(d.fetch==null)d.fetch=0;});}
 const fedToday=d=>d.fedDay===S.day, wateredToday=d=>d.waterDay===S.day;
 const cared=d=>fedToday(d)&&wateredToday(d);
@@ -1009,7 +1037,7 @@ function startNight(){
 let fetchDog=null;
 function careView(){
  const need=S.dogs.filter(d=>!cared(d)).length,unfed=S.dogs.filter(d=>!fedToday(d)).length;
- const rows=S.dogs.map(d=>`<div class="carerow">${pcanvas(d,null,"mpc")}<div class="cmeta"><b>${esc(d.name)}</b><small>${byId(d.breed).short} · ${d.sex==="M"?"♂":"♀"}${d.age==="puppy"?" · puppy":""}</small>${needChips(d)}</div>
+ const rows=S.dogs.map(d=>`<div class="carerow">${pcanvas(d,null,"mpc")}<div class="cmeta"><b>${esc(d.name)}</b><small>${bOf(d).short} · ${d.sex==="M"?"♂":"♀"}${d.age==="puppy"?" · puppy":""}</small>${needChips(d)}</div>
   <div class="cbtns"><button class="btn sm food" data-feed="${d.id}" ${fedToday(d)||S.food<1?"disabled":""}>${fedToday(d)?"Fed":"Feed"}</button>
   <button class="btn sm water" data-water="${d.id}" ${wateredToday(d)?"disabled":""}>${wateredToday(d)?"Watered":"Water"}</button>
   <button class="btn sm play" data-play="${d.id}" aria-pressed="${fetchDog===d.id?"true":"false"}">Play fetch</button></div></div>`).join("");
