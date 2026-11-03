@@ -833,7 +833,7 @@ function agilityView(){
  <div class="panel"><h3>Adults</h3>${ads.length?`<div class="minis">${ads.map(mini).join("")}</div>`:`<p class="sub">No adults yet.</p>`}
  ${pups.length?`<p class="sub">Puppies can't run yet: ${pups.map(p=>`${esc(p.name)} (${learned(p)}/${GROW} tricks)`).join(", ")}.</p>`:""}</div>
  ${d?`<div class="panel"><h3>${esc(d.name)}'s ratings</h3>${statBars(d)}</div>`:""}
- <div class="courses">${COURSES.map(c=>{const open=S.level>=c.lvl,best=d&&S.best[d.id+":"+c.id];const cr=buildCourse(c);
+ <div class="courses">${COURSES.map(c=>{const open=S.level>=c.lvl,best=d&&S.best[d.id+":"+c.id];const cr=buildCourse(c,gapScale(d));
   return `<div class="course ${open?"":"lock"}"><div><h3>${c.name}</h3><p class="sub">${c.seq.length} obstacles · SCT ${courseSct(cr)}s${open?"":` · opens at level ${c.lvl}`}${best?` · ${esc(d.name)}'s best ${best.time.toFixed(2)}s, ${best.faults} faults`:""}</p></div>
   <button class="btn" data-course="${c.id}" ${open&&d?"":"disabled"}>${open?"Enter":"Locked"}</button></div>`}).join("")}</div>`;
 }
@@ -845,11 +845,13 @@ function bindAgility(){
 /* ---------- course & physics ---------- */
 const GAP={jump:230,tire:240,spread:260,tunnel:250,weave6:240,weave12:240,aframe:250};
 const POLE=36;
-function buildCourse(c){let x=320;const obs=[];
+// spread obstacles out for dogs whose leap is longer than the gap, so there's room to land and jump again
+function gapScale(d){if(!d)return 1;const v=speedOf(d.stats.speed),T=.40+d.stats.jump*.003;return Math.max(1,v*(T+.4)/230);}
+function buildCourse(c,sp){sp=sp||1;let x=320;const obs=[];
  c.seq.forEach((t,i)=>{const o={type:t,x,n:i+1};
   o.len=t==="tunnel"?170:t==="aframe"?210:t.startsWith("weave")?((t==="weave6"?6:12)-1)*POLE:t==="spread"?38:0;
   if(t.startsWith("weave"))o.poles=t==="weave6"?6:12;
-  obs.push(o);x+=o.len+GAP[t];});
+  obs.push(o);x+=o.len+GAP[t]*sp;});
  return{obs,finish:x+40,len:x+40};}
 const speedOf=s=>230+s*1.4, weaveSpeedOf=s=>70+s*1.0;
 function weaveLen(cr){let w=0;cr.obs.forEach(o=>{if(o.type.startsWith("weave"))w+=o.len+40;});return w;}
@@ -872,7 +874,7 @@ function size(){dpr=window.devicePixelRatio||1;const cw=cv.clientWidth;const ch=
 window.addEventListener("resize",()=>{if(!$("run").hidden){size();if(R&&!R.running)draw();}});
 function startRun(c){
  const d=dogById(runDog);if(!d||d.age!=="adult"||!cared(d))return;
- const b=bOf(d),cr=buildCourse(c),st=d.stats;
+ const b=bOf(d),cr=buildCourse(c,gapScale(d)),st=d.stats;
  const barH=b.hc*2.05,Tair=.40+st.jump*.003,h=barH*1.6;
  R={course:c,cr,b,dog:d,look:lookOf(d),x:120,y:0,vy:0,air:false,g:8*h/(Tair*Tair),jv:4*h/Tair,barH,dh:b.hc*2.4+4,
   v:speedOf(st.speed),vw:weaveSpeedOf(st.weave),spd:0,t:0,faults:0,running:false,done:false,ph:0,taps:0,msgs:[],
@@ -1328,7 +1330,7 @@ syncHook=()=>Sync.soon();
  Sync.paint();Sync.run();
 })();
 
-const APP_VERSION='1793676994';
+const APP_VERSION='1793678023';
 /* ===== Auto-update: load the newest version even if the phone saved an old copy ===== */
 (function(){
  const ME=APP_VERSION;
