@@ -64,6 +64,9 @@ p{margin:0}
 .meter{height:8px;border-radius:4px;background:#e6edf1;overflow:hidden;display:block}
 .meter i{display:block;height:100%;background:var(--turf)}
 .meter i.range{background:var(--ribbon)}
+.parents{font-size:.8rem;color:var(--muted);margin:0}.parents span{font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:.68rem}
+.parents .m{color:var(--ribbon)}.parents .f{color:var(--girl)}
+.btn.sell{background:#b5651d}
 .stats .avg{font-weight:800;color:var(--ink);border-top:1px solid var(--line);padding-top:4px;margin-top:2px}
 .stats .meter.avg{padding-top:0;margin-top:6px;border:0}.meter.avg i{background:var(--gold)}
 .btn{font-family:var(--display);font-size:1.05rem;border:0;border-radius:12px;padding:10px 16px;background:var(--ribbon);color:#fff;cursor:pointer;touch-action:manipulation}
@@ -179,7 +182,7 @@ body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}
 
 <div id="top" hidden>
   <div class="bar"><span class="brand">Agility Club</span><button class="whobtn" id="whoBtn" hidden></button><span class="pill money" id="pMoney">$0</span><span class="pill" id="pLevel">Level 1</span><span class="pill" id="pHouse">House 1/10</span><span class="pill day" id="pDay">Day 1</span></div>
-  <nav class="tabs"><button data-t="kennel">Kennel</button><button data-t="care">Care</button><button data-t="train">Training</button><button data-t="breed">Breeding</button><button data-t="agility">Agility</button><button data-t="shelter">Shelter</button></nav>
+  <nav class="tabs"><button data-t="kennel">Kennel</button><button data-t="care">Care</button><button data-t="train">Training</button><button data-t="breed">Breeding</button><button data-t="agility">Agility</button><button data-t="shelter">Shelter</button><button data-t="sold">Sold</button></nav>
 </div>
 <div class="wrap">
   <main id="view"></main>
@@ -620,6 +623,7 @@ function render(){
  else if(tab==="agility"){v.innerHTML=agilityView();bindAgility();}
  else if(tab==="shelter"){v.innerHTML=shelterView();bindShelter();}
  else if(tab==="care"){v.innerHTML=careView();bindCare();}
+ else if(tab==="sold"){v.innerHTML=soldView();}
  paint(v);
 }
 
@@ -633,11 +637,18 @@ function whoView(){
 function bindWho(){document.querySelectorAll("[data-who]").forEach(b=>b.onclick=()=>{usePlayer(b.dataset.who);render();window.scrollTo(0,0);});}
 $("whoBtn").onclick=()=>{if(R)return;stopTrain();stopFetch();save();who=null;S=null;render();window.scrollTo(0,0);};
 
+/* ---------- parents & sold ---------- */
+const SELL_PRICE=100;
+function parentNames(d){if(!d.parents||!d.parents.length)return null;
+ return d.parents.map((id,i)=>{const p=dogById(id)||(S.sold||[]).find(x=>x.id===id);return p?p.name:((d.parentNames&&d.parentNames[i])||"unknown");});}
+function parentLine(d){const n=parentNames(d);if(!n)return"";
+ return `<p class="parents"><span>Parents</span> <b class="m">♂ ${esc(n[0])}</b> × <b class="f">♀ ${esc(n[1])}</b></p>`;}
+
 /* ---------- start ---------- */
 let pickId=null;
 function dogCard(d,extra,attrs){const b=bOf(d);
  return `<div class="card" ${attrs||""}>${pcanvas(d)}<div class="top"><h3>${esc(d.name)}</h3>${sexLabel(d)}</div>
- <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${S&&S.started&&S.dogs.includes(d)?needChips(d):""}${statBars(d)}${extra||""}</div>`;}
+ <p class="sub">${b.name} · ${b.hc}" class${d.age==="puppy"?` · <span class="pup">Puppy ${learned(d)}/${GROW} tricks</span>`:""}</p>${S&&S.started&&S.dogs.includes(d)?needChips(d):""}${parentLine(d)}${statBars(d)}${extra||""}</div>`;}
 function startView(){
  return `<div class="intro"><p class="eyebrow">Spencer Agility Club</p><h1>${who?PLAYERS.find(p=>p.id===who).name+", choose":"Choose"} your first dog</h1>
  <p class="lede">A boy and a girl of six agility breeds are waiting. Every dog is one of a kind, so check their ratings before you choose.</p></div>
@@ -656,16 +667,16 @@ function kennelView(){
  const ds=[...S.dogs].sort((a,b)=>(a.age===b.age?0:a.age==="adult"?-1:1));
  let det="";
  const d=openDog&&dogById(openDog);
- if(d){const b=bOf(d),par=d.parents?d.parents.map(id=>{const p=dogById(id);return p?esc(p.name):"(rehomed)"}).join(" × "):"";
+ if(d){const b=bOf(d);
   det=`<div class="detail" id="detail"><div class="dhead">${pcanvas(d,null,"bigpc")}<div class="dmeta">
    <div class="top"><h2>${esc(d.name)}</h2>${sexLabel(d)}</div><p class="sub">${b.name} · ${b.hc}" jump height · ${d.age==="puppy"?"Puppy":"Adult"}</p>
-   ${par?`<p class="sub">Parents: ${par}</p>`:""}
+   ${parentLine(d)}
    <div class="row"><label for="rename" class="sr">Rename</label><input type="text" id="rename" maxlength="16" value="${esc(d.name)}"><button class="btn alt sm" id="renameBtn">Rename</button></div></div></div>
    ${statBars(d)}
    <div><h3>Tricks</h3><div class="chips">${SKILLS.map(s=>{const r=d.skills[s.id]||0;return `<span class="chip ${r>=REPS?"on":""}">${s.name}${r&&r<REPS?` ${r}/${REPS}`:""}</span>`}).join("")}</div></div>
    <p class="sub rec">Runs ${d.rec.runs} · 1st ${d.rec.first} · 2nd ${d.rec.second} · 3rd ${d.rec.third} · clean runs ${d.rec.clean}</p>
-   <div class="row"><button class="btn" id="dTrain">Train</button>${d.age==="adult"?`<button class="btn" id="dRun">Run agility</button>`:`<span class="sub">Learns agility after ${GROW} tricks</span>`}<button class="btn alt" id="dClose">Close</button><button class="btn alt" id="dRehome">Rehome</button></div>
-   ${confirmRehome?`<div class="confirm"><p><b>Send ${esc(d.name)} to a new family?</b> You can't get this dog back.</p><div class="row"><button class="btn danger" id="rhYes">Rehome</button><button class="btn alt" id="rhNo">Keep</button></div></div>`:""}
+   <div class="row"><button class="btn" id="dTrain">Train</button>${d.age==="adult"?`<button class="btn" id="dRun">Run agility</button>`:`<span class="sub">Learns agility after ${GROW} tricks</span>`}<button class="btn alt" id="dClose">Close</button><button class="btn sell" id="dRehome">Sell for $${SELL_PRICE}</button></div>
+   ${confirmRehome?`<div class="confirm"><p><b>Sell ${esc(d.name)} for $${SELL_PRICE}?</b> ${esc(d.name)} goes to a new family and can't come back. You can still see ${d.sex==="M"?"him":"her"} on the Sold page.</p><div class="row"><button class="btn danger" id="rhYes">Sell ${esc(d.name)}</button><button class="btn alt" id="rhNo">Keep</button></div></div>`:""}
   </div>`;}
  return `<div class="intro"><p class="eyebrow">Kennel</p><h1>Your dogs</h1><p class="lede">${S.dogs.length} of ${capacity(S.level)} spots used. ${S.level<20?"The house grows to 15 dogs at level 20.":"The house grows by 5 dogs every 10 levels."}</p></div>
  ${det}<div class="grid">${ds.map(x=>dogCard(x,"",`data-open="${x.id}" role="button" tabindex="0"`)).join("")}</div>`;
@@ -679,7 +690,21 @@ function bindKennel(){
  $("dTrain").onclick=()=>{trainDog=d.id;trainSkill=null;go("train");};
  if($("dRun"))$("dRun").onclick=()=>{runDog=d.id;go("agility");};
  $("dRehome").onclick=()=>{if(S.dogs.length<=1){toast("You need at least one dog.");return;}confirmRehome=true;render();};
- if($("rhYes")){$("rhYes").onclick=()=>{S.dogs=S.dogs.filter(x=>x.id!==d.id);openDog=null;confirmRehome=false;save();render();toast(`${d.name} went to a loving home.`);};$("rhNo").onclick=()=>{confirmRehome=false;render();};}
+ if($("rhYes")){$("rhYes").onclick=()=>{sellDog(d);openDog=null;confirmRehome=false;save();render();toast(`Sold ${d.name} for $${SELL_PRICE}.`);};$("rhNo").onclick=()=>{confirmRehome=false;render();};}
+}
+
+function sellDog(d){
+ if(!S.sold)S.sold=[];
+ const keep={id:d.id,name:d.name,breed:d.breed,genes:d.genes,sex:d.sex,age:d.age,seed:d.seed,tone:d.tone,eye:d.eye,
+  stats:d.stats,skills:d.skills,parents:d.parents,parentNames:parentNames(d),rec:d.rec,soldDay:S.day||1,price:SELL_PRICE};
+ S.sold.unshift(keep);S.dogs=S.dogs.filter(x=>x.id!==d.id);S.money+=SELL_PRICE;
+ if(bBoy===d.id)bBoy=null;if(bGirl===d.id)bGirl=null;if(trainDog===d.id)trainDog=null;if(runDog===d.id)runDog=null;if(typeof fetchDog!=="undefined"&&fetchDog===d.id)fetchDog=null;
+}
+function soldView(){
+ const L=S.sold||[];
+ return `<div class="intro"><p class="eyebrow">Sold dogs</p><h1>Dogs you've sold</h1><p class="lede">${L.length?`${L.length} dog${L.length===1?"":"s"} sold so far. Each one went to a new family for $${SELL_PRICE}.`:`No dogs sold yet. Open a dog on the Kennel tab and tap "Sell for $${SELL_PRICE}".`}</p></div>
+ ${L.length?`<div class="grid sold">${L.map(d=>{const b=bOf(d);return `<div class="card">${pcanvas(d)}<div class="top"><h3>${esc(d.name)}</h3>${sexLabel(d)}</div>
+  <p class="sub">${b.name}${d.age==="puppy"?" · sold as a puppy":""}</p>${parentLine(d)}<p class="sub">Sold on Day ${d.soldDay} for $${d.price||SELL_PRICE}</p></div>`}).join("")}</div>`:""}`;
 }
 
 /* ---------- shelter ---------- */
@@ -726,6 +751,7 @@ function bindBreed(){
   const n=ri(1,3);litter=[];
   for(let i=0;i<n;i++){const st={};STATS.forEach(([k])=>st[k]=clamp(Math.round((a.stats[k]+m.stats[k])/2+rand(-8,8)),5,99));
    const p=makeDog(a.breed,Math.random()<.5?"M":"F",{stats:st,age:"puppy",parents:[a.id,m.id],tone:clamp((a.tone+m.tone)/2+rand(-.05,.05),-.12,.12),eye:Math.random()<.5?a.eye:m.eye});
+   p.parentNames=[a.name,m.name];
    if(a.genes||m.genes||a.breed!==m.breed){const roots=[...new Set([...rootsOf(a),...rootsOf(m)])];p.genes=mixGenes(bOf(a),bOf(m),roots);}
    S.dogs.push(p);litter.push(p.id);}
   bBoy=bGirl=null;save();render();};
@@ -1302,7 +1328,7 @@ syncHook=()=>Sync.soon();
  Sync.paint();Sync.run();
 })();
 
-const APP_VERSION='1793591184';
+const APP_VERSION='1793676994';
 /* ===== Auto-update: load the newest version even if the phone saved an old copy ===== */
 (function(){
  const ME=APP_VERSION;
